@@ -4,7 +4,7 @@ use log::info;
 use reqwest::Client;
 use serde::Deserialize;
 use std::{
-    io::{Cursor, Write},
+    io::{self, Cursor, Read, Seek, Write},
     sync::Arc,
 };
 use tokio::sync::Mutex;
@@ -193,4 +193,28 @@ pub async fn download_images(chapter_id: &str) -> Result<Cursor<Vec<u8>>> {
     let zip = zip.lock().await.finish()?;
 
     Ok(zip)
+}
+
+pub fn open_cbz<R>(reader: R) -> Result<usize>
+where
+    R: Read + Seek,
+{
+    let zip = zip::ZipArchive::new(reader)?;
+
+    Ok(zip.len())
+}
+
+pub fn read_from_cbz_by_index<R>(reader: R, index: usize) -> Result<Vec<u8>>
+where
+    R: Read + Seek,
+{
+    let mut zip = zip::ZipArchive::new(reader)?;
+
+    let mut file = zip.by_index(index)?;
+
+    let mut writer = Cursor::new(Vec::new());
+
+    io::copy(&mut file, &mut writer)?;
+
+    Ok(writer.into_inner())
 }

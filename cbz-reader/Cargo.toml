@@ -1,0 +1,18 @@
+[package]
+edition = "2018"
+name = "cbz-reader"
+version = "0.1.0"
+
+[dependencies]
+anyhow = "1.0.42"
+clap = "3.0.0-beta.2"
+dexter-core = {path = "../dexter-core"}
+iced = {version = "0.3.0", features = ["image"]}
+iced_native = "0.4.0"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "cbz-reader"
+path = "src/main.rs"

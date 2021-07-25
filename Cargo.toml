@@ -1,2 +1,2 @@
 [workspace]
-members = ["dexter-core", "dexter"]
+members = ["dexter-core", "dexter", "cbz-reader"]
