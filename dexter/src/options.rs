@@ -38,9 +38,12 @@ pub struct Download {
     /// Download and pack all the images for the provided chapter id
     #[clap(short, long)]
     pub chapter_id: String,
-    #[clap(short, long, default_value = "chapter.cbz")]
     /// Filename of the downloaded file archived
-    pub output: String,
+    #[clap(short, long, default_value = "chapter.cbz")]
+    pub filename: String,
+    /// Open the downloaded archive
+    #[clap(short, long)]
+    pub open: bool,
 }
 
 #[derive(Subcommand, Debug)]

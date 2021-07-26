@@ -195,7 +195,7 @@ pub async fn download_images(chapter_id: &str) -> Result<Cursor<Vec<u8>>> {
     Ok(zip)
 }
 
-pub fn open_cbz<R>(reader: R) -> Result<usize>
+pub fn get_cbz_size<R>(reader: R) -> Result<usize>
 where
     R: Read + Seek,
 {

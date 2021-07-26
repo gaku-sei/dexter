@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0.42"
+cbz-reader = {path = "../cbz-reader"}
 clap = "3.0.0-beta.2"
 cli-table = "0.4.6"
 dexter-core = {path = "../dexter-core"}

@@ -1,12 +1,14 @@
 use anyhow::Result;
+use cbz_reader::run;
 use clap::Clap;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
-    download_images, get_chapters, get_image_links, search, ChapterResponse, ChapterResult,
-    SearchResponse, SearchResult,
+    download_images, get_cbz_size, get_chapters, get_image_links, search, ChapterResponse,
+    ChapterResult, SearchResponse, SearchResult,
 };
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::Write;
+use std::path::PathBuf;
 use types::{Chapter, ImageLink};
 
 use crate::options::{Chapters, Download, ImageLinks, Options, Search, Subcommands};
@@ -58,14 +60,33 @@ async fn main() -> Result<()> {
 
             print_stdout(image_links.with_title())?;
         }
-        Subcommands::Download(Download { chapter_id, output }) => {
+        Subcommands::Download(Download {
+            chapter_id,
+            filename,
+            open,
+        }) => {
             let zip = download_images(chapter_id.as_str()).await?;
 
-            let mut file = File::create(output)?;
+            let file_path = PathBuf::from(filename);
+
+            let mut file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(file_path.as_path())?;
 
             file.write_all(zip.into_inner().as_ref())?;
 
-            println!("CBZ file created");
+            if open {
+                println!("???");
+                let size = get_cbz_size(file)?;
+
+                println!("{:?} - {}", file_path, size as i32);
+
+                run(file_path, size as i32)?;
+            } else {
+                println!("CBZ file created");
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{crate_version, Clap};
-use dexter_core::open_cbz;
+use dexter_core::get_cbz_size;
 use std::{fs::File, path::PathBuf};
 
 use crate::lib::run;
@@ -22,7 +22,7 @@ pub fn main() -> Result<()> {
 
     let file = File::open(path.as_path())?;
 
-    let size = open_cbz(file)?;
+    let size = get_cbz_size(file)?;
 
     run(path, size as i32)?;
 

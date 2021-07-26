@@ -652,6 +652,7 @@ name = "dexter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cbz-reader",
  "clap",
  "cli-table",
  "dexter-core",
