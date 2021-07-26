@@ -78,10 +78,7 @@ async fn main() -> Result<()> {
             file.write_all(zip.into_inner().as_ref())?;
 
             if open {
-                println!("???");
                 let size = get_cbz_size(file)?;
-
-                println!("{:?} - {}", file_path, size as i32);
 
                 run(file_path, size as i32)?;
             } else {
