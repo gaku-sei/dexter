@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{crate_version, Clap};
 use dexter_core::get_cbz_size;
-use std::{fs::File, path::PathBuf};
+use std::{convert::TryFrom, fs::File, path::PathBuf};
 
 use crate::lib::run;
 
@@ -24,7 +24,9 @@ pub fn main() -> Result<()> {
 
     let size = get_cbz_size(file)?;
 
-    run(path, size as i32)?;
+    let size = i32::try_from(size)?;
+
+    run(path, size)?;
 
     Ok(())
 }

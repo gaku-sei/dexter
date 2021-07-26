@@ -5,6 +5,7 @@ use iced::{
 };
 use iced_native::Event;
 use std::{
+    convert::TryFrom,
     fs::File,
     path::{Path, PathBuf},
 };
@@ -48,7 +49,9 @@ impl CbzReader {
     async fn read_from_cbz<P: AsRef<Path>>(archive_path: P, index: i32) -> Result<Vec<u8>> {
         let file = File::open(archive_path)?;
 
-        read_from_cbz_by_index(file, index as usize)
+        let index = usize::try_from(index)?;
+
+        read_from_cbz_by_index(file, index)
     }
 
     fn handle_cbz_bytes(result: Result<Vec<u8>>) -> Message {

@@ -6,6 +6,7 @@ use dexter_core::{
     download_images, get_cbz_size, get_chapters, get_image_links, search, ChapterResponse,
     ChapterResult, SearchResponse, SearchResult,
 };
+use std::convert::TryFrom;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
@@ -80,7 +81,9 @@ async fn main() -> Result<()> {
             if open {
                 let size = get_cbz_size(file)?;
 
-                run(file_path, size as i32)?;
+                let size = i32::try_from(size)?;
+
+                run(file_path, size)?;
             } else {
                 println!("CBZ file created");
             }
