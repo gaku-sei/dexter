@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use cli_table::{format::Justify, Table};
-use dexter_core::{ChapterData, SearchData};
+use dexter_core::{ChapterData, ImageLinkDescription, SearchData};
 
 fn display_otional_value<Value>(value: &Option<Value>) -> impl Display
 where
@@ -61,11 +61,14 @@ pub struct ImageLink {
     #[table(title = "Filename")]
     filename: String,
     #[table(title = "URL")]
-    title: String,
+    url: String,
 }
 
-impl From<(String, String)> for ImageLink {
-    fn from((filename, title): (String, String)) -> Self {
-        ImageLink { filename, title }
+impl From<ImageLinkDescription> for ImageLink {
+    fn from(image_link_description: ImageLinkDescription) -> Self {
+        ImageLink {
+            filename: image_link_description.filename,
+            url: image_link_description.url,
+        }
     }
 }

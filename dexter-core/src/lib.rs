@@ -1,12 +1,10 @@
 use anyhow::Result;
+use bytes::Bytes;
 use futures::{stream, StreamExt};
 use log::info;
 use reqwest::Client;
 use serde::Deserialize;
-use std::{
-    io::{self, Cursor, Read, Seek, Write},
-    sync::Arc,
-};
+use std::io::{self, Cursor, Read, Seek, Write};
 use tokio::sync::Mutex;
 use url::Url;
 use zip::ZipWriter;
@@ -125,7 +123,13 @@ pub struct ImageLinksResponse {
     pub data: ImageLinksData,
 }
 
-pub async fn get_image_links(chapter_id: &str) -> Result<Vec<(String, String)>> {
+#[derive(Debug)]
+pub struct ImageLinkDescription {
+    pub filename: String,
+    pub url: String,
+}
+
+pub async fn get_image_links(chapter_id: &str) -> Result<Vec<ImageLinkDescription>> {
     let url = format!(
         "https://api.mangadex.org/chapter/{chapter_id}",
         chapter_id = chapter_id
@@ -139,15 +143,13 @@ pub async fn get_image_links(chapter_id: &str) -> Result<Vec<(String, String)>> 
         .attributes
         .data
         .iter()
-        .map(|image_filename| {
-            (
-                image_filename.to_owned(),
-                format!(
-                    "https://uploads.mangadex.org/data/{hash}/{image_filename}",
-                    hash = data.attributes.hash,
-                    image_filename = image_filename
-                ),
-            )
+        .map(|image_filename| ImageLinkDescription {
+            filename: image_filename.to_owned(),
+            url: format!(
+                "https://uploads.mangadex.org/data/{hash}/{image_filename}",
+                hash = data.attributes.hash,
+                image_filename = image_filename
+            ),
         })
         .collect();
 
@@ -159,35 +161,39 @@ pub async fn download_images(chapter_id: &str) -> Result<Cursor<Vec<u8>>> {
 
     let buffer = Cursor::new(Vec::new());
 
-    let zip = Arc::new(Mutex::new(ZipWriter::new(buffer)));
+    let zip = Mutex::new(ZipWriter::new(buffer));
 
     let image_links = get_image_links(chapter_id).await?;
 
     let len = image_links.len();
 
-    let _ = stream::iter(image_links)
-        .map(|(image_filename, image_link)| {
+    let all_images_bytes = stream::iter(image_links)
+        .map(|ImageLinkDescription { filename, url }| {
             let client = client.clone();
-            let zip = Arc::clone(&zip);
 
             tokio::spawn(async move {
-                info!("Downloading {}", image_link);
+                info!("Downloading {}", url);
 
-                let response = client.get(image_link).send().await?;
+                let response = client.get(url).send().await?;
 
                 let bytes = response.bytes().await?;
 
-                let mut zip = zip.lock().await;
-
-                zip.start_file(image_filename.as_str(), Default::default())?;
-
-                zip.write_all(bytes.as_ref())?;
-
-                Ok(()) as Result<()>
+                Ok((filename, bytes)) as Result<(String, Bytes)>
             })
         })
-        .buffered(len)
-        .collect::<Vec<_>>()
+        .buffered(len);
+
+    all_images_bytes
+        .for_each(|bytes| async {
+            if let Ok(Ok((filename, bytes))) = bytes {
+                let mut zip = zip.lock().await;
+
+                zip.start_file(filename.as_str(), Default::default())
+                    .unwrap();
+
+                zip.write_all(bytes.as_ref()).unwrap();
+            }
+        })
         .await;
 
     let zip = zip.lock().await.finish()?;
