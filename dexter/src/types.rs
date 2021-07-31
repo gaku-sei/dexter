@@ -1,5 +1,17 @@
+use std::fmt::Display;
+
 use cli_table::{format::Justify, Table};
 use dexter_core::{ChapterData, SearchData};
+
+fn display_otional_value<Value>(value: &Option<Value>) -> impl Display
+where
+    Value: Display,
+{
+    match value {
+        None => "-".to_string(),
+        Some(value) => format!("{}", value),
+    }
+}
 
 #[derive(Table)]
 pub struct Manga {
@@ -24,12 +36,12 @@ pub struct Chapter {
     title: String,
     #[table(title = "ID", justify = "Justify::Right")]
     id: String,
-    #[table(title = "Volume")]
-    volume: String,
-    #[table(title = "Chapter")]
-    chapter: String,
-    #[table(title = "Language")]
-    language: String,
+    #[table(title = "Volume", display_fn = "display_otional_value")]
+    volume: Option<String>,
+    #[table(title = "Chapter", display_fn = "display_otional_value")]
+    chapter: Option<String>,
+    #[table(title = "Language", display_fn = "display_otional_value")]
+    language: Option<String>,
 }
 
 impl From<ChapterData> for Chapter {

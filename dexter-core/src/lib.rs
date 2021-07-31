@@ -53,11 +53,11 @@ pub async fn search(title: &str, limit: u16) -> Result<SearchResponse> {
 
 #[derive(Debug, Deserialize)]
 pub struct ChapterAttributes {
-    pub volume: String,
-    pub chapter: String,
+    pub volume: Option<String>,
+    pub chapter: Option<String>,
     pub title: String,
     #[serde(rename = "translatedLanguage")]
-    pub translated_language: String,
+    pub translated_language: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
