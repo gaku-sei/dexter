@@ -86,7 +86,7 @@ impl Application for CbzReader {
     }
 
     fn title(&self) -> String {
-        "CbzReader - Iced".to_string()
+        String::from("CbzReader - Iced")
     }
 
     fn update(

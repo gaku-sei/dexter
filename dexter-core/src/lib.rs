@@ -137,19 +137,26 @@ pub async fn get_image_links(chapter_id: &str) -> Result<Vec<ImageLinkDescriptio
 
     let response = reqwest::get(url).await?;
 
-    let ImageLinksResponse { data } = response.json().await?;
+    let image_links_response: ImageLinksResponse = response.json().await?;
 
-    let image_links = data
+    let hash = image_links_response.data.attributes.hash;
+
+    let image_links = image_links_response
+        .data
         .attributes
         .data
-        .iter()
-        .map(|image_filename| ImageLinkDescription {
-            filename: image_filename.to_owned(),
-            url: format!(
+        .into_iter()
+        .map(|image_filename| {
+            let url = format!(
                 "https://uploads.mangadex.org/data/{hash}/{image_filename}",
-                hash = data.attributes.hash,
-                image_filename = image_filename
-            ),
+                hash = hash,
+                image_filename = image_filename.as_str()
+            );
+
+            ImageLinkDescription {
+                filename: image_filename,
+                url,
+            }
         })
         .collect();
 

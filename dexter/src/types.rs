@@ -8,7 +8,7 @@ where
     Value: Display,
 {
     match value {
-        None => "-".to_string(),
+        None => String::from("-"),
         Some(value) => format!("{}", value),
     }
 }
