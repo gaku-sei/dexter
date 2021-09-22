@@ -4,7 +4,7 @@ use clap::Clap;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
     download_images, get_cbz_size, get_chapters, get_image_links, search, ChapterResponse,
-    ChapterResult, SearchResponse, SearchResult,
+    SearchResponse,
 };
 use std::convert::TryFrom;
 use std::fs::OpenOptions;
@@ -26,11 +26,11 @@ async fn main() -> Result<()> {
 
     match options.command {
         Subcommands::Search(Search { limit, title }) => {
-            let SearchResponse { results } = search(title.as_str(), limit).await?;
+            let SearchResponse { data } = search(title.as_str(), limit).await?;
 
-            let mangas = results
+            let mangas = data
                 .into_iter()
-                .map(|SearchResult { data }| data.into())
+                .map(|data| data.into())
                 .collect::<Vec<Manga>>();
 
             print_stdout(mangas.with_title())?;
@@ -41,12 +41,12 @@ async fn main() -> Result<()> {
             chapters,
             volumes,
         }) => {
-            let ChapterResponse { results } =
+            let ChapterResponse { data } =
                 get_chapters(manga_id.as_str(), limit, volumes, chapters).await?;
 
-            let chapters = results
+            let chapters = data
                 .into_iter()
-                .map(|ChapterResult { data }: ChapterResult| data.into())
+                .map(|data| data.into())
                 .collect::<Vec<Chapter>>();
 
             print_stdout(chapters.with_title())?;
