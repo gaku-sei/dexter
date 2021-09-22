@@ -1,0 +1,13 @@
+[package]
+edition = "2018"
+name = "dexter-gui"
+version = "0.1.0"
+
+[dependencies]
+anyhow = "1.0.42"
+dexter-core = {path = "../dexter-core"}
+sixtyfps = "0.1.2"
+tokio = {version = "1", features = ["full"]}
+
+[build-dependencies]
+sixtyfps-build = "0.1.2"

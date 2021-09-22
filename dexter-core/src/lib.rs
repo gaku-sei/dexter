@@ -4,7 +4,10 @@ use futures::{stream, StreamExt};
 use log::info;
 use reqwest::Client;
 use serde::Deserialize;
-use std::io::{self, Cursor, Read, Seek, Write};
+use std::{
+    fmt::Display,
+    io::{self, Cursor, Read, Seek, Write},
+};
 use tokio::sync::Mutex;
 use url::Url;
 use zip::ZipWriter;
@@ -30,7 +33,7 @@ pub struct SearchResponse {
     pub data: Vec<SearchData>,
 }
 
-pub async fn search(title: &str, limit: u16) -> Result<SearchResponse> {
+pub async fn search<S: AsRef<str> + Display>(title: S, limit: u16) -> Result<SearchResponse> {
     let url = format!(
         "https://api.mangadex.org/manga?title={title}&limit={limit}&order[relevance]=desc",
         title = title,

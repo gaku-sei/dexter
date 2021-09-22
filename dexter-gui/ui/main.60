@@ -1,0 +1,104 @@
+struct Manga := {
+  title: string,
+  id: string,
+}
+
+struct Chapter := {
+  title: string,
+  // id: string,
+}
+
+Button := Rectangle {
+  callback clicked();
+  property <string> label;
+
+  // border-width: 1px;
+  // border-radius: 2px;
+  // border-color: blueviolet;
+  // vertical-stretch: 0;
+  // horizontal-stretch: 0;
+
+  Text {
+    text: label;
+    color: black;
+  }
+
+  TouchArea {
+    width: 100%;
+    height: 100%;
+
+    clicked => { root.clicked(); }
+  }
+}
+
+MainWindow := Window {
+  property <[Manga]> mangas;
+  property <[Chapter]> chapters;
+  callback search-mangas(string);
+  callback search-chapters(string);
+
+  background: white;
+  height: 500px;
+  width: 500px;
+
+  VerticalLayout {
+    HorizontalLayout {
+      height: 48px;
+
+      input := TextInput {
+        width: 50%;
+        color: black;
+      }
+
+      Button {
+        label: "Search";
+
+        clicked => { root.search-mangas(input.text); }
+      }
+    }
+    HorizontalLayout { 
+      VerticalLayout {
+        width: 50%;
+
+        Text {
+          text: "Mangas";
+        }
+
+        for manga in mangas: Rectangle {
+          Text {
+            text: manga.title;
+            color: black;
+          }
+
+          TouchArea {
+            width: 100%;
+            height: 100%;
+
+            clicked => { root.search-chapters(manga.id); }
+          }
+        }
+      }
+      VerticalLayout {
+        width: 50%;
+
+        Text {
+          text: "Chapters";
+        }
+
+        for chapter in chapters: Rectangle {
+          Text {
+            text: chapter.title;
+            color: black;
+          }
+
+          TouchArea {
+            width: 100%;
+            height: 100%;
+
+            clicked => { debug(chapter.title); }
+          }
+        }
+      }
+    }
+  }
+}
