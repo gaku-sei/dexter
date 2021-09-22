@@ -26,18 +26,13 @@ pub struct SearchData {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SearchResult {
-    pub data: SearchData,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct SearchResponse {
-    pub results: Vec<SearchResult>,
+    pub data: Vec<SearchData>,
 }
 
 pub async fn search(title: &str, limit: u16) -> Result<SearchResponse> {
     let url = format!(
-        "https://api.mangadex.org/manga?title={title}&limit={limit}",
+        "https://api.mangadex.org/manga?title={title}&limit={limit}&order[relevance]=desc",
         title = title,
         limit = limit
     );
@@ -65,13 +60,8 @@ pub struct ChapterData {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ChapterResult {
-    pub data: ChapterData,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct ChapterResponse {
-    pub results: Vec<ChapterResult>,
+    pub data: Vec<ChapterData>,
 }
 
 pub async fn get_chapters(
@@ -88,6 +78,8 @@ pub async fn get_chapters(
         query.append_pair("manga", manga_id);
 
         query.append_pair("limit", limit.to_string().as_str());
+
+        query.append_pair("order[chapter]", "desc");
 
         for chapter in chapters {
             query.append_pair("chapter[]", chapter.as_str());
