@@ -4,11 +4,11 @@ name = "dexter"
 version = "0.1.0"
 
 [dependencies]
-anyhow = "1.0.42"
-cbz-reader = {path = "../cbz-reader"}
-clap = "3.0.0-beta.2"
+anyhow = "1.0.52"
+cbz-reader = { path = "../cbz-reader" }
+clap = { version = "3.0.7", features = ["derive"] }
 cli-table = "0.4.6"
-dexter-core = {path = "../dexter-core"}
+dexter-core = { path = "../dexter-core" }
 env_logger = "0.9.0"
 log = "0.4.14"
-tokio = {version = "1", features = ["full"]}
+tokio = { version = "1.15.0", features = ["full"] }

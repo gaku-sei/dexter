@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cbz_reader::run;
-use clap::Clap;
+use clap::Parser;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
     download_images, get_cbz_size, get_chapters, get_image_links, search, ChapterResponse,
@@ -12,19 +12,19 @@ use std::io::Write;
 use std::path::PathBuf;
 use types::{Chapter, ImageLink};
 
-use crate::options::{Chapters, Download, ImageLinks, Options, Search, Subcommands};
+use crate::args::{Args, Chapters, Download, ImageLinks, Search, Subcommands};
 use crate::types::Manga;
 
-mod options;
+mod args;
 mod types;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
 
-    let options = Options::parse();
+    let args = Args::parse();
 
-    match options.command {
+    match args.command {
         Subcommands::Search(Search { limit, title }) => {
             let SearchResponse { data } = search(title.as_str(), limit).await?;
 

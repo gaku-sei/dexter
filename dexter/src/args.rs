@@ -1,6 +1,6 @@
-use clap::{crate_version, Clap, Subcommand};
+use clap::{Parser, Subcommand};
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub struct Search {
     /// Search for a manga by title
     #[clap(short, long)]
@@ -10,7 +10,7 @@ pub struct Search {
     pub limit: u16,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub struct Chapters {
     /// Display the chapters for a specified manga id
     #[clap(short, long)]
@@ -26,14 +26,14 @@ pub struct Chapters {
     pub chapters: Vec<String>,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub struct ImageLinks {
     /// Display the image links for a specified chapter id
     #[clap(short, long)]
     pub chapter_id: String,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 pub struct Download {
     /// Download and pack all the images for the provided chapter id
     #[clap(short, long)]
@@ -58,9 +58,9 @@ pub enum Subcommands {
     Download(Download),
 }
 
-#[derive(Clap, Debug)]
-#[clap(name = "dexter", version = crate_version!())]
-pub struct Options {
+#[derive(Parser, Debug)]
+#[clap(about, author, version)]
+pub struct Args {
     /// Search mangas
     #[clap(subcommand)]
     pub command: Subcommands,

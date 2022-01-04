@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{crate_version, Clap};
+use clap::Parser;
 use dexter_core::get_cbz_size;
 use std::{convert::TryFrom, fs::File, path::PathBuf};
 
@@ -7,8 +7,8 @@ use crate::lib::run;
 
 mod lib;
 
-#[derive(Clap, Debug)]
-#[clap(name = "cbz-reader", version = crate_version!())]
+#[derive(Parser, Debug)]
+#[clap(about, author, version)]
 pub struct Options {
     /// The path to the cbz archive
     #[clap(short, long)]
