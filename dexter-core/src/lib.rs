@@ -4,8 +4,11 @@ use futures::{stream, StreamExt};
 use log::info;
 use reqwest::Client;
 use serde::Deserialize;
-use std::io::{self, Cursor, Read, Seek, Write};
-use tokio::sync::Mutex;
+use std::{
+    io::{self, Cursor, Read, Seek, Write},
+    sync::Arc,
+};
+use tokio::sync::{mpsc::Sender, Mutex};
 use url::Url;
 use zip::ZipWriter;
 
@@ -77,16 +80,16 @@ pub async fn get_chapters(
 
         query.append_pair("manga", manga_id);
 
-        query.append_pair("limit", limit.to_string().as_str());
+        query.append_pair("limit", &limit.to_string());
 
         query.append_pair("order[chapter]", "desc");
 
         for chapter in chapters {
-            query.append_pair("chapter[]", chapter.as_str());
+            query.append_pair("chapter[]", &chapter);
         }
 
         for volume in volumes {
-            query.append_pair("volume[]", volume.as_str());
+            query.append_pair("volume[]", &volume);
         }
 
         query.finish();
@@ -106,13 +109,16 @@ pub struct ImageLinksAttributes {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ImageLinksData {
-    pub attributes: ImageLinksAttributes,
+pub struct ImageLinksChapter {
+    pub data: Vec<String>,
+    pub hash: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ImageLinksResponse {
-    pub data: ImageLinksData,
+    pub chapter: ImageLinksChapter,
+    #[serde(rename = "baseUrl")]
+    pub base_url: String,
 }
 
 #[derive(Debug)]
@@ -123,7 +129,7 @@ pub struct ImageLinkDescription {
 
 pub async fn get_image_links(chapter_id: &str) -> Result<Vec<ImageLinkDescription>> {
     let url = format!(
-        "https://api.mangadex.org/chapter/{chapter_id}",
+        "https://api.mangadex.org/at-home/server/{chapter_id}",
         chapter_id = chapter_id
     );
 
@@ -131,19 +137,16 @@ pub async fn get_image_links(chapter_id: &str) -> Result<Vec<ImageLinkDescriptio
 
     let image_links_response: ImageLinksResponse = response.json().await?;
 
-    let hash = image_links_response.data.attributes.hash;
+    let base_url = image_links_response.base_url;
+
+    let hash = image_links_response.chapter.hash;
 
     let image_links = image_links_response
-        .data
-        .attributes
+        .chapter
         .data
         .into_iter()
         .map(|image_filename| {
-            let url = format!(
-                "https://uploads.mangadex.org/data/{hash}/{image_filename}",
-                hash = hash,
-                image_filename = image_filename.as_str()
-            );
+            let url = format!("{}/data/{}/{}", base_url, hash, image_filename);
 
             ImageLinkDescription {
                 filename: image_filename,
@@ -155,7 +158,20 @@ pub async fn get_image_links(chapter_id: &str) -> Result<Vec<ImageLinkDescriptio
     Ok(image_links)
 }
 
-pub async fn download_images(chapter_id: &str) -> Result<Cursor<Vec<u8>>> {
+#[derive(Debug)]
+pub enum ImageDownloadEvent {
+    Init(usize),
+    Download,
+    Zip,
+    Done,
+}
+
+pub async fn download_images(
+    chapter_id: &str,
+    tx: Sender<ImageDownloadEvent>,
+) -> Result<Cursor<Vec<u8>>> {
+    let tx = Arc::new(tx);
+
     let client = Client::new();
 
     let buffer = Cursor::new(Vec::new());
@@ -166,9 +182,13 @@ pub async fn download_images(chapter_id: &str) -> Result<Cursor<Vec<u8>>> {
 
     let len = image_links.len();
 
+    tx.send(ImageDownloadEvent::Init(len)).await?;
+
     let all_images_bytes = stream::iter(image_links)
         .map(|ImageLinkDescription { filename, url }| {
             let client = client.clone();
+
+            let tx = Arc::clone(&tx);
 
             tokio::spawn(async move {
                 info!("Downloading {}", url);
@@ -176,6 +196,8 @@ pub async fn download_images(chapter_id: &str) -> Result<Cursor<Vec<u8>>> {
                 let response = client.get(url).send().await?;
 
                 let bytes = response.bytes().await?;
+
+                tx.send(ImageDownloadEvent::Download).await?;
 
                 Ok((filename, bytes)) as Result<(String, Bytes)>
             })
@@ -187,20 +209,24 @@ pub async fn download_images(chapter_id: &str) -> Result<Cursor<Vec<u8>>> {
             if let Ok(Ok((filename, bytes))) = bytes {
                 let mut zip = zip.lock().await;
 
-                zip.start_file(filename.as_str(), Default::default())
-                    .unwrap();
+                zip.start_file(&filename, Default::default()).unwrap();
 
                 zip.write_all(bytes.as_ref()).unwrap();
+
+                // TODO: Drop `unwrap`
+                tx.send(ImageDownloadEvent::Zip).await.unwrap();
             }
         })
         .await;
 
     let zip = zip.lock().await.finish()?;
 
+    tx.send(ImageDownloadEvent::Done).await?;
+
     Ok(zip)
 }
 
-pub fn get_cbz_size<R>(reader: R) -> Result<usize>
+pub fn get_reader_size<R>(reader: R) -> Result<usize>
 where
     R: Read + Seek,
 {
@@ -209,7 +235,7 @@ where
     Ok(zip.len())
 }
 
-pub fn read_from_cbz_by_index<R>(reader: R, index: usize) -> Result<Vec<u8>>
+pub fn read_by_index<R>(reader: R, index: usize) -> Result<Vec<u8>>
 where
     R: Read + Seek,
 {

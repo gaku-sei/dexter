@@ -1,5 +1,5 @@
 use anyhow::Result;
-use dexter_core::read_from_cbz_by_index;
+use dexter_core::read_by_index;
 use iced::{
     executor, image, slider, Application, Column, Command, Element, Settings, Subscription, Text,
 };
@@ -51,7 +51,7 @@ impl CbzReader {
 
         let index = usize::try_from(index)?;
 
-        read_from_cbz_by_index(file, index)
+        read_by_index(file, index)
     }
 
     fn handle_cbz_bytes(result: Result<Vec<u8>>) -> Message {
