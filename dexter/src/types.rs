@@ -13,12 +13,12 @@ where
     }
 }
 
-#[derive(Table)]
+#[derive(Debug, Clone, Table)]
 pub struct Manga {
     #[table(title = "Title")]
     title: String,
     #[table(title = "ID", justify = "Justify::Right")]
-    id: String,
+    pub id: String,
 }
 
 impl From<SearchData> for Manga {
@@ -30,12 +30,18 @@ impl From<SearchData> for Manga {
     }
 }
 
-#[derive(Table)]
+impl ToString for Manga {
+    fn to_string(&self) -> String {
+        self.title.clone()
+    }
+}
+
+#[derive(Debug, Clone, Table)]
 pub struct Chapter {
     #[table(title = "Title")]
     title: String,
     #[table(title = "ID", justify = "Justify::Right")]
-    id: String,
+    pub id: String,
     #[table(title = "Volume", display_fn = "display_otional_value")]
     volume: Option<String>,
     #[table(title = "Chapter", display_fn = "display_otional_value")]
@@ -56,7 +62,13 @@ impl From<ChapterData> for Chapter {
     }
 }
 
-#[derive(Table)]
+impl ToString for Chapter {
+    fn to_string(&self) -> String {
+        self.title.clone()
+    }
+}
+
+#[derive(Debug, Clone, Table)]
 pub struct ImageLink {
     #[table(title = "Filename")]
     filename: String,

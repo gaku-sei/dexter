@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use dexter_core::get_cbz_size;
+use dexter_core::get_reader_size;
 use std::{convert::TryFrom, fs::File, path::PathBuf};
 
 use crate::lib::run;
@@ -22,7 +22,7 @@ pub fn main() -> Result<()> {
 
     let file = File::open(path.as_path())?;
 
-    let size = get_cbz_size(file)?;
+    let size = get_reader_size(file)?;
 
     let size = i32::try_from(size)?;
 

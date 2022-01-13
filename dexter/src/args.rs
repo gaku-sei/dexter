@@ -48,13 +48,20 @@ pub struct Download {
 
 #[derive(Subcommand, Debug)]
 pub enum Subcommands {
+    /// Interactive Search
+    #[clap(alias = "is")]
+    InteractiveSearch,
     /// Search for mangas
+    #[clap(alias = "s")]
     Search(Search),
     /// Search for chapters
+    #[clap(alias = "c")]
     Chapters(Chapters),
     /// Display links to all the images contained in a chapter
+    #[clap(alias = "il")]
     ImageLinks(ImageLinks),
     /// Download and pack all the images contained in a chapter
+    #[clap(alias = "d")]
     Download(Download),
 }
 
