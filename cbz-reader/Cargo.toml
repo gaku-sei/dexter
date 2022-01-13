@@ -4,10 +4,10 @@ name = "cbz-reader"
 version = "0.1.0"
 
 [dependencies]
-anyhow = "1.0.42"
-clap = "3.0.0-beta.2"
-dexter-core = {path = "../dexter-core"}
-iced = {version = "0.3.0", features = ["image"]}
+anyhow = "1.0.52"
+clap = { version = "3.0.7", features = ["derive"] }
+dexter-core = { path = "../dexter-core" }
+iced = { version = "0.3.0", features = ["image"] }
 iced_native = "0.4.0"
 
 [lib]
