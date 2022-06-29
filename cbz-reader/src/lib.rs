@@ -1,14 +1,18 @@
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+
+use std::{
+    convert::TryFrom,
+    fs::File,
+    path::{Path, PathBuf},
+};
+
 use anyhow::Result;
 use dexter_core::read_by_index;
 use iced::{
     executor, image, slider, Application, Column, Command, Element, Settings, Subscription, Text,
 };
 use iced_native::Event;
-use std::{
-    convert::TryFrom,
-    fs::File,
-    path::{Path, PathBuf},
-};
 
 #[derive(Debug)]
 struct CbzReaderReady {
@@ -46,7 +50,7 @@ pub struct Flags {
 }
 
 impl CbzReader {
-    async fn read_from_cbz<P: AsRef<Path>>(archive_path: P, index: i32) -> Result<Vec<u8>> {
+    async fn read_from_cbz(archive_path: impl AsRef<Path>, index: i32) -> Result<Vec<u8>> {
         let file = File::open(archive_path)?;
 
         let index = usize::try_from(index)?;
@@ -68,10 +72,8 @@ impl Application for CbzReader {
     type Flags = Flags;
 
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
-        let archive_path = flags.archive_path.clone();
-
         let cbz_reader = Self {
-            archive_path,
+            archive_path: flags.archive_path.clone(),
             archive_size: flags.archive_size,
             state: CbzReaderState::Init,
         };
@@ -89,11 +91,7 @@ impl Application for CbzReader {
         String::from("CbzReader - Iced")
     }
 
-    fn update(
-        &mut self,
-        message: Self::Message,
-        _clipboard: &mut iced::Clipboard,
-    ) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::EventOccurred(Event::Keyboard(iced::keyboard::Event::KeyPressed {
                 key_code: iced::keyboard::KeyCode::Right,
@@ -101,7 +99,7 @@ impl Application for CbzReader {
             })) => {
                 if let CbzReaderState::Ready(ref mut ready) = self.state {
                     if ready.index < self.archive_size - 1 {
-                        ready.index += 1
+                        ready.index += 1;
                     }
 
                     return Command::perform(
@@ -116,7 +114,7 @@ impl Application for CbzReader {
             })) => {
                 if let CbzReaderState::Ready(ref mut ready) = self.state {
                     if ready.index > 0 {
-                        ready.index -= 1
+                        ready.index -= 1;
                     }
 
                     return Command::perform(
@@ -125,11 +123,10 @@ impl Application for CbzReader {
                     );
                 }
             }
-            Message::EventOccurred(_) => (),
             Message::SetIndex(new_index) => {
                 if let CbzReaderState::Ready(ref mut ready) = self.state {
                     if ready.index < self.archive_size {
-                        ready.index = new_index
+                        ready.index = new_index;
                     }
 
                     return Command::perform(
@@ -146,14 +143,15 @@ impl Application for CbzReader {
                     CbzReaderState::Init => {
                         self.state = CbzReaderState::Ready(CbzReaderReady {
                             image_handle,
-                            image_viewer: Default::default(),
+                            image_viewer: image::viewer::State::default(),
                             index: 0,
-                            slider: Default::default(),
-                        })
+                            slider: slider::State::default(),
+                        });
                     }
                 }
             }
-            Message::SetImageError => (),
+
+            Message::EventOccurred(_) | Message::SetImageError => (),
         }
 
         Command::none()
@@ -167,12 +165,9 @@ impl Application for CbzReader {
         match self.state {
             CbzReaderState::Init => Column::new().push(Text::new("Loading").size(50)).into(),
             CbzReaderState::Ready(ref mut ready) => {
-                let text = Text::new(format!(
-                    "{}/{}",
-                    (ready.index + 1).to_string(),
-                    self.archive_size
-                ));
+                let text = Text::new(format!("{}/{}", ready.index + 1, self.archive_size));
 
+                #[allow(clippy::range_minus_one)]
                 let slider = slider::Slider::new(
                     &mut ready.slider,
                     0..=self.archive_size - 1,
@@ -180,8 +175,7 @@ impl Application for CbzReader {
                     Message::SetIndex,
                 );
 
-                let image =
-                    image::Viewer::new(&mut ready.image_viewer, ready.image_handle.to_owned());
+                let image = image::Viewer::new(&mut ready.image_viewer, ready.image_handle.clone());
 
                 Column::new().push(text).push(slider).push(image).into()
             }
@@ -189,6 +183,11 @@ impl Application for CbzReader {
     }
 }
 
+/// Runs the CBZ Reader application.
+///
+/// # Errors
+///
+/// IO errors will make this fail.
 pub fn run(archive_path: PathBuf, archive_size: i32) -> Result<()> {
     CbzReader::run(Settings {
         flags: Flags {

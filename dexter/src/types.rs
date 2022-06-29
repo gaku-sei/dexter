@@ -9,7 +9,7 @@ where
 {
     match value {
         None => String::from("-"),
-        Some(value) => format!("{}", value),
+        Some(value) => format!("{value}"),
     }
 }
 
@@ -30,9 +30,9 @@ impl From<SearchData> for Manga {
     }
 }
 
-impl ToString for Manga {
-    fn to_string(&self) -> String {
-        self.title.clone()
+impl Display for Manga {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.title)
     }
 }
 
@@ -62,9 +62,9 @@ impl From<ChapterData> for Chapter {
     }
 }
 
-impl ToString for Chapter {
-    fn to_string(&self) -> String {
-        self.title.clone()
+impl Display for Chapter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.title)
     }
 }
 
