@@ -1,16 +1,21 @@
-use anyhow::Result;
-use bytes::Bytes;
-use futures::{stream, StreamExt};
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+
+use std::{
+    fmt::Display,
+    io::{self, Cursor, Read, Seek, Write},
+    iter::IntoIterator,
+    sync::Arc,
+};
+
+use anyhow::{anyhow, Error, Result};
+use futures::{stream, StreamExt, TryStreamExt};
 use log::info;
 use reqwest::Client;
 use serde::Deserialize;
-use std::{
-    io::{self, Cursor, Read, Seek, Write},
-    sync::Arc,
-};
 use tokio::sync::{mpsc::Sender, Mutex};
 use url::Url;
-use zip::ZipWriter;
+use zip::{write::FileOptions, ZipWriter};
 
 #[derive(Debug, Deserialize)]
 pub struct SearchTitle {
@@ -33,11 +38,14 @@ pub struct SearchResponse {
     pub data: Vec<SearchData>,
 }
 
-pub async fn search(title: &str, limit: u16) -> Result<SearchResponse> {
+/// Search for a manga by its title
+///
+/// # Errors
+///
+/// Any network or request error will make this function fail.
+pub async fn search(title: impl Display, limit: u16) -> Result<SearchResponse> {
     let url = format!(
         "https://api.mangadex.org/manga?title={title}&limit={limit}&order[relevance]=desc",
-        title = title,
-        limit = limit
     );
 
     let response = reqwest::get(url).await?;
@@ -67,29 +75,34 @@ pub struct ChapterResponse {
     pub data: Vec<ChapterData>,
 }
 
+/// Get all chapters for the given manga id. Optionally volumes and chapters can be provided.
+///
+/// # Errors
+///
+/// Any network or request error will make this function fail.
 pub async fn get_chapters(
-    manga_id: &str,
+    manga_id: impl AsRef<str>,
     limit: u16,
-    volumes: Vec<String>,
-    chapters: Vec<String>,
+    volumes: impl IntoIterator<Item = impl AsRef<str>>,
+    chapters: impl IntoIterator<Item = impl AsRef<str>>,
 ) -> Result<ChapterResponse> {
     let mut url = Url::parse("https://api.mangadex.org/chapter")?;
 
     {
         let mut query = url.query_pairs_mut();
 
-        query.append_pair("manga", manga_id);
+        query.append_pair("manga", manga_id.as_ref());
 
         query.append_pair("limit", &limit.to_string());
 
         query.append_pair("order[chapter]", "desc");
 
         for chapter in chapters {
-            query.append_pair("chapter[]", &chapter);
+            query.append_pair("chapter[]", chapter.as_ref());
         }
 
         for volume in volumes {
-            query.append_pair("volume[]", &volume);
+            query.append_pair("volume[]", volume.as_ref());
         }
 
         query.finish();
@@ -127,11 +140,13 @@ pub struct ImageLinkDescription {
     pub url: String,
 }
 
-pub async fn get_image_links(chapter_id: &str) -> Result<Vec<ImageLinkDescription>> {
-    let url = format!(
-        "https://api.mangadex.org/at-home/server/{chapter_id}",
-        chapter_id = chapter_id
-    );
+/// Get all image links for the given chapter id.
+///
+/// # Errors
+///
+/// Any network or request error will make this function fail.
+pub async fn get_image_links(chapter_id: impl Display) -> Result<Vec<ImageLinkDescription>> {
+    let url = format!("https://api.mangadex.org/at-home/server/{chapter_id}");
 
     let response = reqwest::get(url).await?;
 
@@ -146,7 +161,7 @@ pub async fn get_image_links(chapter_id: &str) -> Result<Vec<ImageLinkDescriptio
         .data
         .into_iter()
         .map(|image_filename| {
-            let url = format!("{}/data/{}/{}", base_url, hash, image_filename);
+            let url = format!("{base_url}/data/{hash}/{image_filename}");
 
             ImageLinkDescription {
                 filename: image_filename,
@@ -166,8 +181,15 @@ pub enum ImageDownloadEvent {
     Done,
 }
 
+/// Downloads all images for a given chapter id, and create an archive containing all the downloaded images.
+///
+/// # Errors
+///
+/// Any network or request error will make this function fail.
+///
+/// Archive creation errors will also make this fail.
 pub async fn download_images(
-    chapter_id: &str,
+    chapter_id: impl Display,
     tx: Sender<ImageDownloadEvent>,
 ) -> Result<Cursor<Vec<u8>>> {
     let tx = Arc::new(tx);
@@ -199,25 +221,31 @@ pub async fn download_images(
 
                 tx.send(ImageDownloadEvent::Download).await?;
 
-                Ok((filename, bytes)) as Result<(String, Bytes)>
+                Ok::<_, Error>((filename, bytes))
             })
         })
         .buffered(len);
 
     all_images_bytes
-        .for_each(|bytes| async {
-            if let Ok(Ok((filename, bytes))) = bytes {
+        .map_err(|error| anyhow!("join handle error: {error}"))
+        .try_for_each_concurrent(None, |bytes| async {
+            if let Ok((filename, bytes)) = bytes {
                 let mut zip = zip.lock().await;
 
-                zip.start_file(&filename, Default::default()).unwrap();
+                zip.start_file(&filename, FileOptions::default())
+                    .map_err(|_| anyhow!("failed to create archive file {filename}"))?;
 
-                zip.write_all(bytes.as_ref()).unwrap();
+                zip.write_all(bytes.as_ref())
+                    .map_err(|_| anyhow!("failed to write content to archive file {filename}"))?;
 
-                // TODO: Drop `unwrap`
-                tx.send(ImageDownloadEvent::Zip).await.unwrap();
+                tx.send(ImageDownloadEvent::Zip)
+                    .await
+                    .map_err(|_| anyhow!("failed to send message to channel"))?;
             }
+
+            Ok(())
         })
-        .await;
+        .await?;
 
     let zip = zip.lock().await.finish()?;
 
@@ -226,6 +254,11 @@ pub async fn download_images(
     Ok(zip)
 }
 
+/// Get the size of a `Reader` which content is a Zip archive.
+///
+/// # Errors
+///
+/// Fails if the archive file couldn't be read.
 pub fn get_reader_size<R>(reader: R) -> Result<usize>
 where
     R: Read + Seek,
@@ -235,6 +268,11 @@ where
     Ok(zip.len())
 }
 
+/// Get the content of a file that's in a Zip archive `Reader`.
+///
+/// # Errors
+///
+/// Fails if the archive file couldn't be read, or if the index is out of bound.
 pub fn read_by_index<R>(reader: R, index: usize) -> Result<Vec<u8>>
 where
     R: Read + Seek,

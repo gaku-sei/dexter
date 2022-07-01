@@ -1,11 +1,13 @@
-use anyhow::Result;
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+
+use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
 use cbz_reader::run;
 use clap::Parser;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
-    download_images, get_chapters, get_image_links, get_reader_size, search, ChapterResponse,
-    ImageDownloadEvent, SearchResponse,
+    download_images, get_chapters, get_image_links, get_reader_size, search, ImageDownloadEvent,
 };
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
@@ -27,11 +29,12 @@ mod types;
 async fn find_manga() -> Result<Manga> {
     let manga_title: String = Input::new().with_prompt("Manga title").interact_text()?;
 
-    let SearchResponse { data } = search(&manga_title, 10).await?;
+    let search_response = search(manga_title, 10).await?;
 
-    let mangas = data
+    let mangas = search_response
+        .data
         .into_iter()
-        .map(|data| data.into())
+        .map(Into::into)
         .collect::<Vec<Manga>>();
 
     let selection = Select::with_theme(&ColorfulTheme::default())
@@ -40,10 +43,12 @@ async fn find_manga() -> Result<Manga> {
         .default(0)
         .interact_opt()?;
 
-    if let Some(selection) = selection {
-        Ok(mangas[selection].clone())
-    } else {
-        find_manga().await
+    match selection {
+        Some(selection) => mangas
+            .into_iter()
+            .nth(selection)
+            .ok_or_else(|| anyhow!("{selection} index not found in manga list")),
+        None => find_manga().await,
     }
 }
 
@@ -51,12 +56,13 @@ async fn find_manga() -> Result<Manga> {
 async fn find_chapter(manga: &Manga) -> Result<Chapter> {
     let chapter_number: String = Input::new().with_prompt("Chapter number").interact_text()?;
 
-    let ChapterResponse { data } =
-        get_chapters(&manga.id, 10, Vec::new(), vec![chapter_number]).await?;
+    let chapter_response =
+        get_chapters(&manga.id, 10, Vec::<&str>::new(), vec![chapter_number]).await?;
 
-    let chapters = data
+    let chapters = chapter_response
+        .data
         .into_iter()
-        .map(|data| data.into())
+        .map(Into::into)
         .collect::<Vec<Chapter>>();
 
     let selection = Select::with_theme(&ColorfulTheme::default())
@@ -65,15 +71,17 @@ async fn find_chapter(manga: &Manga) -> Result<Chapter> {
         .default(0)
         .interact_opt()?;
 
-    if let Some(selection) = selection {
-        Ok(chapters[selection].clone())
-    } else {
-        find_chapter(manga).await
+    match selection {
+        Some(selection) => chapters
+            .into_iter()
+            .nth(selection)
+            .ok_or_else(|| anyhow!("{selection} index not found in chapter list")),
+        None => find_chapter(manga).await,
     }
 }
 
 async fn download(chapter_id: &str, filename: &str, open: bool) -> Result<()> {
-    let (tx, mut rx) = mpsc::channel(1);
+    let (tx, mut rx) = mpsc::channel(32);
 
     tokio::spawn(async move {
         let mut bar = ProgressBar::new(0);
@@ -135,11 +143,7 @@ async fn main() -> Result<()> {
 
             let filename: String = Input::new()
                 .with_prompt("Filename")
-                .with_initial_text(&format!(
-                    "{} - {}.cbz",
-                    manga.to_string(),
-                    chapter.to_string()
-                ))
+                .with_initial_text(&format!("{manga} - {chapter}.cbz"))
                 .interact_text()?;
 
             download(&chapter.id, &filename, false).await?;
@@ -148,11 +152,12 @@ async fn main() -> Result<()> {
         }
 
         Subcommands::Search(Search { limit, title }) => {
-            let SearchResponse { data } = search(&title, limit).await?;
+            let search_response = search(title, limit).await?;
 
-            let mangas = data
+            let mangas = search_response
+                .data
                 .into_iter()
-                .map(|data| data.into())
+                .map(Into::into)
                 .collect::<Vec<Manga>>();
 
             print_stdout(mangas.with_title())?;
@@ -163,12 +168,12 @@ async fn main() -> Result<()> {
             chapters,
             volumes,
         }) => {
-            let ChapterResponse { data } =
-                get_chapters(&manga_id, limit, volumes, chapters).await?;
+            let chapter_response = get_chapters(manga_id, limit, volumes, chapters).await?;
 
-            let chapters = data
+            let chapters = chapter_response
+                .data
                 .into_iter()
-                .map(|data| data.into())
+                .map(Into::into)
                 .collect::<Vec<Chapter>>();
 
             print_stdout(chapters.with_title())?;
