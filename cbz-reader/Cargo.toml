@@ -1,14 +1,15 @@
 [package]
-edition = "2021"
 name = "cbz-reader"
 version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
-anyhow = "1.0.58"
-clap = { version = "3.2.7", features = ["derive"] }
-dexter-core = { path = "../dexter-core" }
-iced = { version = "0.4.2", features = ["image"] }
-iced_native = "0.5.1"
+anyhow.workspace = true
+clap = { workspace = true, features = ["derive"] }
+dexter-core.workspace = true
+iced = { workspace = true, features = ["image"] }
+iced_native.workspace = true
 
 [lib]
 path = "src/lib.rs"

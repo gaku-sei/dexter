@@ -1,17 +1,18 @@
 [package]
-edition = "2021"
 name = "dexter"
 version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
-anyhow = "1.0.58"
-async-recursion = "1.0.0"
-cbz-reader = { path = "../cbz-reader" }
-clap = { version = "3.2.7", features = ["derive"] }
-cli-table = "0.4.7"
-dexter-core = { path = "../dexter-core" }
-dialoguer = "0.10.1"
-env_logger = "0.9.0"
-indicatif = "0.16.2"
-log = "0.4.17"
-tokio = { version = "1.19.2", features = ["full"] }
+anyhow.workspace = true
+async-recursion.workspace = true
+cbz-reader.workspace = true
+clap = { workspace = true, features = ["derive"] }
+cli-table.workspace = true
+dexter-core.workspace = true
+dialoguer.workspace = true
+env_logger.workspace = true
+indicatif.workspace = true
+log.workspace = true
+tokio = { workspace = true, features = ["full"] }

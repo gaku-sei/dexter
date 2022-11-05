@@ -1,15 +1,16 @@
 [package]
-edition = "2021"
 name = "dexter-core"
 version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
-anyhow = "1.0.58"
-bytes = "1.1.0"
-futures = "0.3.21"
-log = "0.4.17"
-reqwest = { version = "0.11.11", features = ["json"] }
-serde = { version = "1.0.137", features = ["derive"] }
-tokio = { version = "1.19.2", features = ["full"] }
-url = "2.2.2"
-zip = "0.6.2"
+anyhow.workspace = true
+bytes.workspace = true
+futures.workspace = true
+log.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+url.workspace = true
+zip.workspace = true

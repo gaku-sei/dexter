@@ -1,11 +1,12 @@
-use anyhow::Result;
-use clap::Parser;
-use dexter_core::get_reader_size;
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+
 use std::{convert::TryFrom, fs::File, path::PathBuf};
 
-use crate::lib::run;
-
-mod lib;
+use anyhow::Result;
+use cbz_reader::run;
+use clap::Parser;
+use dexter_core::get_reader_size;
 
 #[derive(Parser, Debug)]
 #[clap(about, author, version)]
