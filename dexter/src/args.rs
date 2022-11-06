@@ -4,9 +4,24 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 pub struct InteractiveSearch {
+    /// Skips manga search and use manga id as reference
+    #[clap(long)]
+    pub manga_id: Option<String>,
+    /// Used with the `--manga-id` and `--chapter-number` to refine chapter search
+    #[clap(long)]
+    pub volume_number: Option<String>,
+    /// Skips chapter search and use this chapter number as reference, the `--manga-id` option must be provided too
+    #[clap(long)]
+    pub chapter_number: Option<String>,
+    /// Accepts the default filename automatically
+    #[clap(long, action)]
+    pub accepts_default_filename: bool,
     /// Destination directory, defaults to the current directory
     #[clap(long)]
     pub outdir: Option<PathBuf>,
+    /// Language to use
+    #[clap(long, default_value = "en")]
+    pub language: String,
 }
 
 #[derive(Parser, Debug)]

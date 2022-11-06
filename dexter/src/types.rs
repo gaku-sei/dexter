@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use cli_table::{format::Justify, Table};
-use dexter_core::{ChapterData, ImageLinkDescription, SearchData};
+use dexter_core::{ChapterData, ChaptersData, ImageLinkDescription, MangaData, SearchData};
 
 fn display_otional_value<Value>(value: &Option<Value>) -> impl Display
 where
@@ -23,6 +23,15 @@ pub struct Manga {
 
 impl From<SearchData> for Manga {
     fn from(SearchData { attributes, id }: SearchData) -> Self {
+        Manga {
+            id,
+            title: attributes.title.en,
+        }
+    }
+}
+
+impl From<MangaData> for Manga {
+    fn from(MangaData { attributes, id }: MangaData) -> Self {
         Manga {
             id,
             title: attributes.title.en,
@@ -62,9 +71,31 @@ impl From<ChapterData> for Chapter {
     }
 }
 
+impl From<ChaptersData> for Chapter {
+    fn from(ChaptersData { attributes, id }: ChaptersData) -> Self {
+        Chapter {
+            id,
+            title: attributes.title,
+            volume: attributes.volume,
+            chapter: attributes.chapter,
+            language: attributes.translated_language,
+        }
+    }
+}
+
 impl Display for Chapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.title)
+        if let Some(volume) = &self.volume {
+            write!(f, "{volume:0>2} - ")?;
+        }
+
+        if let Some(chapter) = &self.chapter {
+            write!(f, "{chapter:0>3} - ")?;
+        }
+
+        write!(f, "{}", self.title)?;
+
+        Ok(())
     }
 }
 

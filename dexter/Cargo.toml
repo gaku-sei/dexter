@@ -15,4 +15,5 @@ dialoguer.workspace = true
 env_logger.workspace = true
 indicatif.workspace = true
 log.workspace = true
+sanitize-filename.workspace = true
 tokio = { workspace = true, features = ["full"] }
