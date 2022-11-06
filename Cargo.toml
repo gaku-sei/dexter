@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["dexter-core", "dexter", "cbz-reader", "cbz-reindex"]
+members = ["dexter-core", "dexter", "cbz-merge", "cbz-reader", "cbz-reindex"]
 
 [workspace.package]
 rust-version = "1.65"
@@ -17,6 +17,7 @@ dexter-core = { path = "./dexter-core" }
 dialoguer = "0.10.2"
 env_logger = "0.9.1"
 futures = "0.3.25"
+glob = "0.3.0"
 iced = "0.4.2"
 iced_native = "0.5.1"
 indicatif = "0.17.1"
