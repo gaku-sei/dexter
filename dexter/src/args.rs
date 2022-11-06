@@ -1,4 +1,13 @@
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
+
+#[derive(Parser, Debug)]
+pub struct InteractiveSearch {
+    /// Destination directory, defaults to the current directory
+    #[clap(long)]
+    pub outdir: Option<PathBuf>,
+}
 
 #[derive(Parser, Debug)]
 pub struct Search {
@@ -44,13 +53,16 @@ pub struct Download {
     /// Open the downloaded archive
     #[clap(short, long)]
     pub open: bool,
+    /// Destination directory, defaults to the current directory
+    #[clap(long)]
+    pub outdir: Option<PathBuf>,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum Subcommands {
     /// Interactive Search
     #[clap(alias = "is")]
-    InteractiveSearch,
+    InteractiveSearch(InteractiveSearch),
     /// Search for mangas
     #[clap(alias = "s")]
     Search(Search),

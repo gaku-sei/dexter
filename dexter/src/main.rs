@@ -1,7 +1,10 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use anyhow::{anyhow, Result};
+use std::fs::create_dir_all;
+use std::{convert::TryFrom, env::current_dir, fs::OpenOptions, io::Write, path::Path};
+
+use anyhow::{anyhow, Error, Result};
 use async_recursion::async_recursion;
 use cbz_reader::run;
 use clap::Parser;
@@ -12,14 +15,10 @@ use dexter_core::{
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
 use indicatif::{ProgressBar, ProgressStyle};
-use std::convert::TryFrom;
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::path::PathBuf;
 use tokio::sync::mpsc;
 use types::{Chapter, ImageLink};
 
-use crate::args::{Args, Chapters, Download, ImageLinks, Search, Subcommands};
+use crate::args::{Args, Chapters, Download, ImageLinks, InteractiveSearch, Search, Subcommands};
 use crate::types::Manga;
 
 mod args;
@@ -53,11 +52,16 @@ async fn find_manga() -> Result<Manga> {
 }
 
 #[async_recursion]
-async fn find_chapter(manga: &Manga) -> Result<Chapter> {
-    let chapter_number: String = Input::new().with_prompt("Chapter number").interact_text()?;
+async fn find_chapter(manga: &Manga) -> Result<(f32, Chapter)> {
+    let chapter_number: f32 = Input::new().with_prompt("Chapter number").interact_text()?;
 
-    let chapter_response =
-        get_chapters(&manga.id, 10, Vec::<&str>::new(), vec![chapter_number]).await?;
+    let chapter_response = get_chapters(
+        &manga.id,
+        10,
+        Vec::<&str>::new(),
+        vec![chapter_number.to_string()],
+    )
+    .await?;
 
     let chapters = chapter_response
         .data
@@ -75,15 +79,16 @@ async fn find_chapter(manga: &Manga) -> Result<Chapter> {
         Some(selection) => chapters
             .into_iter()
             .nth(selection)
+            .map(|chapter| (chapter_number, chapter))
             .ok_or_else(|| anyhow!("{selection} index not found in chapter list")),
         None => find_chapter(manga).await,
     }
 }
 
-async fn download(chapter_id: &str, filename: &str, open: bool) -> Result<()> {
+async fn download(chapter_id: &str, filepath: &Path, open: bool) -> Result<()> {
     let (tx, mut rx) = mpsc::channel(32);
 
-    tokio::spawn(async move {
+    let progress_handle = tokio::spawn(async move {
         let mut bar = ProgressBar::new(0);
 
         while let Some(event) = rx.recv().await {
@@ -93,7 +98,10 @@ async fn download(chapter_id: &str, filename: &str, open: bool) -> Result<()> {
 
                     bar.set_style(
                         ProgressStyle::default_bar()
-                            .template("[{elapsed_precise}] [{wide_bar}] {percent}%"),
+                            .template("[{elapsed_precise}] [{wide_bar}] {percent}%")
+                            .map_err(|err| {
+                                anyhow::anyhow!("couldn't set progress template: {err}")
+                            })?,
                     );
                 }
                 ImageDownloadEvent::Download | ImageDownloadEvent::Zip => {
@@ -104,27 +112,29 @@ async fn download(chapter_id: &str, filename: &str, open: bool) -> Result<()> {
                 }
             }
         }
+
+        Ok::<(), Error>(())
     });
 
     let zip = download_images(chapter_id, tx).await?;
-
-    let file_path = PathBuf::from(filename);
 
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
-        .open(file_path.as_path())?;
+        .open(filepath)?;
 
-    file.write_all(zip.into_inner().as_ref())?;
+    file.write_all(&zip.into_inner())?;
 
     if open {
         let size = get_reader_size(file)?;
 
         let size = i32::try_from(size)?;
 
-        run(file_path, size)?;
+        run(filepath.to_path_buf(), size)?;
     }
+
+    progress_handle.await??;
 
     Ok(())
 }
@@ -136,17 +146,25 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Subcommands::InteractiveSearch => {
+        Subcommands::InteractiveSearch(InteractiveSearch { outdir }) => {
             let manga = find_manga().await?;
 
-            let chapter = find_chapter(&manga).await?;
+            let (chapter_number, chapter) = find_chapter(&manga).await?;
 
             let filename: String = Input::new()
                 .with_prompt("Filename")
-                .with_initial_text(&format!("{manga} - {chapter}.cbz"))
+                .with_initial_text(&format!("{manga} - {chapter_number:0>3} - {chapter}.cbz"))
                 .interact_text()?;
 
-            download(&chapter.id, &filename, false).await?;
+            let outdir = outdir.unwrap_or(current_dir()?);
+
+            if !outdir.exists() {
+                create_dir_all(&outdir)?;
+            }
+
+            let filepath = outdir.join(filename);
+
+            download(&chapter.id, &filepath, false).await?;
 
             println!("CBZ file created");
         }
@@ -192,8 +210,17 @@ async fn main() -> Result<()> {
             chapter_id,
             filename,
             open,
+            outdir,
         }) => {
-            download(&chapter_id, &filename, open).await?;
+            let outdir = outdir.unwrap_or(current_dir()?);
+
+            if !outdir.exists() {
+                create_dir_all(&outdir)?;
+            }
+
+            let filepath = outdir.join(filename);
+
+            download(&chapter_id, &filepath, open).await?;
 
             println!("CBZ file created");
         }

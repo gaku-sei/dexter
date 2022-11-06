@@ -50,6 +50,7 @@ pub struct Flags {
 }
 
 impl CbzReader {
+    #[allow(clippy::unused_async)]
     async fn read_from_cbz(archive_path: impl AsRef<Path>, index: i32) -> Result<Vec<u8>> {
         let file = File::open(archive_path)?;
 
