@@ -56,7 +56,46 @@ pub async fn search(title: impl Display, limit: u16) -> Result<SearchResponse> {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ChapterAttributes {
+pub struct MangaTitle {
+    pub en: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MangaAttributes {
+    pub title: MangaTitle,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MangaData {
+    pub id: String,
+    pub attributes: MangaAttributes,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MangaResponse {
+    pub data: MangaData,
+}
+
+/// Get manga information for the given manga id.
+///
+/// # Errors
+///
+/// Any network or request error will make this function fail.
+pub async fn get_manga(manga_id: impl AsRef<str>) -> Result<MangaResponse> {
+    let url = Url::parse(&format!(
+        "https://api.mangadex.org/manga/{}",
+        manga_id.as_ref()
+    ))?;
+
+    let response = reqwest::get(url).await?;
+
+    let manga_response = response.json().await?;
+
+    Ok(manga_response)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChaptersAttributes {
     pub volume: Option<String>,
     pub chapter: Option<String>,
     pub title: String,
@@ -65,14 +104,14 @@ pub struct ChapterAttributes {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ChapterData {
+pub struct ChaptersData {
     pub id: String,
-    pub attributes: ChapterAttributes,
+    pub attributes: ChaptersAttributes,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ChapterResponse {
-    pub data: Vec<ChapterData>,
+pub struct ChaptersResponse {
+    pub data: Vec<ChaptersData>,
 }
 
 /// Get all chapters for the given manga id. Optionally volumes and chapters can be provided.
@@ -85,7 +124,7 @@ pub async fn get_chapters(
     limit: u16,
     volumes: impl IntoIterator<Item = impl AsRef<str>>,
     chapters: impl IntoIterator<Item = impl AsRef<str>>,
-) -> Result<ChapterResponse> {
+) -> Result<ChaptersResponse> {
     let mut url = Url::parse("https://api.mangadex.org/chapter")?;
 
     {
@@ -107,6 +146,57 @@ pub async fn get_chapters(
 
         query.finish();
     }
+
+    let response = reqwest::get(url).await?;
+
+    let chapters_response = response.json().await?;
+
+    Ok(chapters_response)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChapterAttributes {
+    pub volume: Option<String>,
+    pub chapter: Option<String>,
+    pub title: String,
+    #[serde(rename = "translatedLanguage")]
+    pub translated_language: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChapterData {
+    pub id: String,
+    pub attributes: ChapterAttributes,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChapterResponse {
+    pub data: Vec<ChapterData>,
+}
+
+/// Get one specific chapter given manga id and number.
+///
+/// # Errors
+///
+/// Any network or request error will make this function fail.
+pub async fn get_chapter(
+    manga_id: impl AsRef<str>,
+    language: impl AsRef<str>,
+    chapter_number: impl AsRef<str>,
+    volume_number: Option<impl AsRef<str>>,
+) -> Result<ChapterResponse> {
+    let mut url = Url::parse(&format!(
+        "https://api.mangadex.org/chapter?manga={}&chapter[]={}&translatedLanguage[]={}",
+        manga_id.as_ref(),
+        chapter_number.as_ref(),
+        language.as_ref()
+    ))?;
+
+    if let Some(volume_number) = volume_number {
+        let mut query = url.query_pairs_mut();
+
+        query.append_pair("volume[]", volume_number.as_ref());
+    };
 
     let response = reqwest::get(url).await?;
 

@@ -1,8 +1,13 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use std::fs::create_dir_all;
-use std::{convert::TryFrom, env::current_dir, fs::OpenOptions, io::Write, path::Path};
+use std::{
+    convert::TryFrom,
+    env::current_dir,
+    fs::{create_dir_all, OpenOptions},
+    io::Write,
+    path::Path,
+};
 
 use anyhow::{anyhow, Error, Result};
 use async_recursion::async_recursion;
@@ -10,7 +15,8 @@ use cbz_reader::run;
 use clap::Parser;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
-    download_images, get_chapters, get_image_links, get_reader_size, search, ImageDownloadEvent,
+    download_images, get_chapter, get_chapters, get_image_links, get_manga, get_reader_size,
+    search, ImageDownloadEvent,
 };
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
@@ -52,8 +58,8 @@ async fn find_manga() -> Result<Manga> {
 }
 
 #[async_recursion]
-async fn find_chapter(manga: &Manga) -> Result<(f32, Chapter)> {
-    let chapter_number: f32 = Input::new().with_prompt("Chapter number").interact_text()?;
+async fn find_chapter(manga: &Manga) -> Result<Chapter> {
+    let chapter_number: String = Input::new().with_prompt("Chapter number").interact_text()?;
 
     let chapter_response = get_chapters(
         &manga.id,
@@ -79,7 +85,6 @@ async fn find_chapter(manga: &Manga) -> Result<(f32, Chapter)> {
         Some(selection) => chapters
             .into_iter()
             .nth(selection)
-            .map(|chapter| (chapter_number, chapter))
             .ok_or_else(|| anyhow!("{selection} index not found in chapter list")),
         None => find_chapter(manga).await,
     }
@@ -146,15 +151,50 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Subcommands::InteractiveSearch(InteractiveSearch { outdir }) => {
-            let manga = find_manga().await?;
+        Subcommands::InteractiveSearch(InteractiveSearch {
+            manga_id,
+            chapter_number,
+            volume_number,
+            accepts_default_filename,
+            outdir,
+            language,
+        }) => {
+            let manga = match manga_id {
+                Some(manga_id) => get_manga(manga_id).await?.data.into(),
+                None => find_manga().await?,
+            };
 
-            let (chapter_number, chapter) = find_chapter(&manga).await?;
+            let chapter = match chapter_number {
+                Some(chapter_number) => {
+                    let mut chapter_response = get_chapter(
+                        &manga.id,
+                        &language,
+                        &chapter_number,
+                        volume_number.as_ref(),
+                    )
+                    .await?;
 
-            let filename: String = Input::new()
-                .with_prompt("Filename")
-                .with_initial_text(&format!("{manga} - {chapter_number:0>3} - {chapter}.cbz"))
-                .interact_text()?;
+                    let Some(chapter) = chapter_response
+                        .data
+                        .pop() else {
+                            panic!("chapter number {chapter_number} not found for manga {manga} and language {language}");
+                        };
+
+                    chapter.into()
+                }
+                None => find_chapter(&manga).await?,
+            };
+
+            let default_filename = sanitize_filename::sanitize(format!("{manga} - {chapter}.cbz"));
+
+            let filename = if accepts_default_filename {
+                default_filename
+            } else {
+                Input::new()
+                    .with_prompt("Filename")
+                    .with_initial_text(&default_filename)
+                    .interact_text()?
+            };
 
             let outdir = outdir.unwrap_or(current_dir()?);
 
