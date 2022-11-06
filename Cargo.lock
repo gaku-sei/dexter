@@ -261,6 +261,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cbz-reindex"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "dexter-core",
+ "env_logger",
+ "tokio",
+ "zip",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"

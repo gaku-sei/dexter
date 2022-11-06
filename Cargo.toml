@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["dexter-core", "dexter", "cbz-reader"]
+members = ["dexter-core", "dexter", "cbz-reader", "cbz-reindex"]
 
 [workspace.package]
 rust-version = "1.65"

@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, bail, Error, Result};
 use futures::{stream, StreamExt, TryStreamExt};
 use log::info;
 use reqwest::Client;
@@ -271,6 +271,49 @@ pub enum ImageDownloadEvent {
     Done,
 }
 
+/// Index are often ill formatted or invalid (x1, R2, etc...).
+/// This function will clean up the index and add some padding (3).
+///
+/// # Errors
+///
+/// Fails if the filename is empty or the index is invalid (longer than the `expected_length` or not a valid unsigned integer).
+pub fn update_filename_index(
+    filename: impl Into<String>,
+    expected_length: usize,
+) -> Result<String> {
+    let filename = filename.into();
+
+    let mut name_chars = filename.chars();
+
+    let Some(first_char) = name_chars.next() else {
+        bail!("file name is empty");
+    };
+
+    let mut index = if first_char.is_numeric() {
+        first_char.to_string()
+    } else {
+        String::new()
+    };
+
+    #[allow(clippy::while_let_on_iterator)]
+    while let Some(c) = name_chars.next() {
+        if c == '-' {
+            break;
+        }
+
+        index.push(c);
+    }
+
+    if index.len() > expected_length || index.parse::<u16>().is_err() {
+        bail!("invalid index: {index}");
+    }
+
+    Ok(format!(
+        "{index:0>expected_length$}-{}",
+        name_chars.as_str()
+    ))
+}
+
 /// Downloads all images for a given chapter id, and create an archive containing all the downloaded images.
 ///
 /// # Errors
@@ -311,7 +354,7 @@ pub async fn download_images(
 
                 tx.send(ImageDownloadEvent::Download).await?;
 
-                Ok::<_, Error>((filename, bytes))
+                Ok::<_, Error>((update_filename_index(filename, 3)?, bytes))
             })
         })
         .buffered(len);
