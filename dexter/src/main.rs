@@ -2,21 +2,20 @@
 #![deny(clippy::pedantic)]
 
 use std::{
-    convert::TryFrom,
     env::current_dir,
     fs::{create_dir_all, OpenOptions},
-    io::Write,
     path::Path,
 };
 
 use anyhow::{anyhow, Error, Result};
 use async_recursion::async_recursion;
+use cbz::CbzReader;
 use cbz_reader::run;
 use clap::Parser;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
-    download_images, get_chapter, get_chapters, get_image_links, get_manga, get_reader_size,
-    search, ImageDownloadEvent,
+    download_images, get_chapter, get_chapters, get_image_links, get_manga, search,
+    ImageDownloadEvent,
 };
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
@@ -121,22 +120,20 @@ async fn download(chapter_id: &str, filepath: &Path, open: bool) -> Result<()> {
         Ok::<(), Error>(())
     });
 
-    let zip = download_images(chapter_id, tx).await?;
+    let cbz_writer_finished = download_images(chapter_id, tx).await?;
 
-    let mut file = OpenOptions::new()
+    let file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
         .open(filepath)?;
 
-    file.write_all(&zip.into_inner())?;
+    cbz_writer_finished.write_to(&file)?;
 
     if open {
-        let size = get_reader_size(file)?;
+        let cbz = CbzReader::from_reader(file)?;
 
-        let size = i32::try_from(size)?;
-
-        run(filepath.to_path_buf(), size)?;
+        run(cbz)?;
     }
 
     progress_handle.await??;

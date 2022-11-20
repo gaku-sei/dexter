@@ -7,10 +7,12 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 bytes.workspace = true
+cbz.workspace = true
 futures.workspace = true
 log.workspace = true
 reqwest = { workspace = true, features = ["json"] }
+reqwest-middleware.workspace = true
+reqwest-retry.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
 url.workspace = true
-zip.workspace = true

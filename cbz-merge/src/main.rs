@@ -1,16 +1,11 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use std::{
-    fs::File,
-    io::{self, BufReader, Cursor, Write},
-    path::PathBuf,
-};
-
-use anyhow::Result;
+use anyhow::{bail, Result};
+use camino::{Utf8Path, Utf8PathBuf};
+use cbz::{CbzRead, CbzReader, CbzWrite, CbzWriter, CbzWriterInsertionBuilder};
 use clap::Parser;
 use glob::glob;
-use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 #[derive(Parser, Debug)]
 #[clap(about, author, version)]
@@ -20,7 +15,7 @@ pub struct Args {
     pub archives_glob: String,
     /// The output directory for the merged archive
     #[clap(short, long)]
-    pub outdir: PathBuf,
+    pub outdir: Utf8PathBuf,
     /// The merged archive name
     #[clap(short, long)]
     pub name: String,
@@ -29,34 +24,35 @@ pub struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let mut merged_archive_writer = ZipWriter::new(Cursor::new(Vec::new()));
+    let mut merged_cbz_writer = CbzWriter::default();
 
-    for (index, entry) in glob(&args.archives_glob)?.enumerate() {
-        let entry = entry?;
+    for path in glob(&args.archives_glob)? {
+        let mut current_cbz = CbzReader::from_path(path?)?;
 
-        let archive = File::open(&entry)?;
+        current_cbz.try_for_each(|file| {
+            let file = file?;
 
-        let mut archive_reader = ZipArchive::new(BufReader::new(archive))?;
+            let Some(extension) = Utf8Path::new(file.name()).extension().map(ToString::to_string) else {
+                bail!("Extension couldn't be read from {}", file.name());
+            };
 
-        for i in 0..archive_reader.len() {
-            let mut file = archive_reader.by_index(i)?;
+            let insertion = CbzWriterInsertionBuilder::from_extension(&extension)
+                .set_bytes_from_reader(file)?
+                .build()?;
 
-            let filename = format!("{:0>2} - {}", index + 1, file.name());
+            merged_cbz_writer.insert(insertion)?;
 
-            merged_archive_writer.start_file(&filename, FileOptions::default())?;
-
-            io::copy(&mut file, &mut merged_archive_writer)?;
-        }
+            Ok::<(), anyhow::Error>(())
+        })?;
     }
 
-    let merged_archive_buffer = merged_archive_writer.finish()?;
+    let merged_cbz_writer_finished = merged_cbz_writer.finish()?;
 
-    let mut merged_archive = File::create(
-        args.outdir
-            .join(sanitize_filename::sanitize(format!("{}.cbz", args.name))),
-    )?;
+    let output_path = args
+        .outdir
+        .join(sanitize_filename::sanitize(format!("{}.cbz", args.name)));
 
-    merged_archive.write_all(&merged_archive_buffer.into_inner())?;
+    merged_cbz_writer_finished.write_to_path(output_path)?;
 
     Ok(())
 }

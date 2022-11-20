@@ -2,15 +2,16 @@
 #![deny(clippy::pedantic)]
 
 use std::{
-    convert::TryFrom,
-    fs::File,
-    path::{Path, PathBuf},
+    io::{Read, Seek},
+    sync::{Arc, Mutex},
 };
 
 use anyhow::Result;
-use dexter_core::read_by_index;
+use bytes::Bytes;
+use cbz::{Cbz, CbzRead, CbzReader};
 use iced::{
-    executor, image, slider, Application, Column, Command, Element, Settings, Subscription, Text,
+    executor, image, slider, window, Application, Column, Command, Element, Settings, Subscription,
+    Text,
 };
 use iced_native::Event;
 
@@ -18,7 +19,7 @@ use iced_native::Event;
 struct CbzReaderReady {
     image_handle: image::Handle,
     image_viewer: image::viewer::State,
-    index: i32,
+    index: usize,
     slider: slider::State,
 }
 
@@ -29,37 +30,39 @@ enum CbzReaderState {
 }
 
 #[derive(Debug)]
-pub struct CbzReader {
-    archive_size: i32,
-    archive_path: PathBuf,
+pub struct CbzReaderView<'a, R> {
+    cbz: Arc<Mutex<CbzReader<'a, R>>>,
+    cbz_len: usize,
     state: CbzReaderState,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     EventOccurred(Event),
-    SetImage(Vec<u8>),
+    SetImage(Bytes),
     SetImageError,
-    SetIndex(i32),
+    SetIndex(u32),
 }
 
-#[derive(Debug, Default)]
-pub struct Flags {
-    archive_path: PathBuf,
-    archive_size: i32,
+#[derive(Debug)]
+pub struct Flags<'a, R> {
+    cbz: Arc<Mutex<CbzReader<'a, R>>>,
 }
 
-impl CbzReader {
+impl<'a, R> CbzReaderView<'a, R>
+where
+    R: Read + Seek,
+{
     #[allow(clippy::unused_async)]
-    async fn read_from_cbz(archive_path: impl AsRef<Path>, index: i32) -> Result<Vec<u8>> {
-        let file = File::open(archive_path)?;
+    async fn read_from_cbz(cbz: Arc<Mutex<CbzReader<'a, R>>>, index: usize) -> Result<Bytes> {
+        let mut cbz = cbz.lock().unwrap();
 
-        let index = usize::try_from(index)?;
+        let bytes = cbz.read_to_bytes_by_index(index)?;
 
-        read_by_index(file, index)
+        Ok(bytes)
     }
 
-    fn handle_cbz_bytes(result: Result<Vec<u8>>) -> Message {
+    fn handle_cbz_bytes(result: Result<Bytes>) -> Message {
         match result {
             Ok(bytes) => Message::SetImage(bytes),
             Err(_) => Message::SetImageError,
@@ -67,24 +70,28 @@ impl CbzReader {
     }
 }
 
-impl Application for CbzReader {
+impl<R> Application for CbzReaderView<'static, R>
+where
+    R: 'static + Read + Seek + Send,
+{
     type Executor = executor::Default;
     type Message = Message;
-    type Flags = Flags;
+    type Flags = Flags<'static, R>;
 
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
+        let cbz_len = flags.cbz.lock().unwrap().len();
+
         let cbz_reader = Self {
-            archive_path: flags.archive_path.clone(),
-            archive_size: flags.archive_size,
+            cbz: flags.cbz,
+            cbz_len,
             state: CbzReaderState::Init,
         };
 
+        let read_first_file_future = Self::read_from_cbz(cbz_reader.cbz.clone(), 0);
+
         (
             cbz_reader,
-            Command::perform(
-                Self::read_from_cbz(flags.archive_path, 0),
-                Self::handle_cbz_bytes,
-            ),
+            Command::perform(read_first_file_future, Self::handle_cbz_bytes),
         )
     }
 
@@ -99,12 +106,12 @@ impl Application for CbzReader {
                 ..
             })) => {
                 if let CbzReaderState::Ready(ref mut ready) = self.state {
-                    if ready.index < self.archive_size - 1 {
+                    if ready.index < self.cbz_len - 1 {
                         ready.index += 1;
                     }
 
                     return Command::perform(
-                        Self::read_from_cbz(self.archive_path.clone(), ready.index),
+                        Self::read_from_cbz(self.cbz.clone(), ready.index),
                         Self::handle_cbz_bytes,
                     );
                 }
@@ -119,25 +126,25 @@ impl Application for CbzReader {
                     }
 
                     return Command::perform(
-                        Self::read_from_cbz(self.archive_path.clone(), ready.index),
+                        Self::read_from_cbz(self.cbz.clone(), ready.index),
                         Self::handle_cbz_bytes,
                     );
                 }
             }
             Message::SetIndex(new_index) => {
                 if let CbzReaderState::Ready(ref mut ready) = self.state {
-                    if ready.index < self.archive_size {
-                        ready.index = new_index;
+                    if ready.index < self.cbz_len {
+                        ready.index = new_index as usize;
                     }
 
                     return Command::perform(
-                        Self::read_from_cbz(self.archive_path.clone(), ready.index),
+                        Self::read_from_cbz(self.cbz.clone(), ready.index),
                         Self::handle_cbz_bytes,
                     );
                 }
             }
             Message::SetImage(image) => {
-                let image_handle = image::Handle::from_memory(image);
+                let image_handle = image::Handle::from_memory(image.to_vec());
 
                 match self.state {
                     CbzReaderState::Ready(ref mut ready) => ready.image_handle = image_handle,
@@ -166,13 +173,20 @@ impl Application for CbzReader {
         match self.state {
             CbzReaderState::Init => Column::new().push(Text::new("Loading").size(50)).into(),
             CbzReaderState::Ready(ref mut ready) => {
-                let text = Text::new(format!("{}/{}", ready.index + 1, self.archive_size));
+                let text = Text::new(format!("{}/{}", ready.index + 1, self.cbz_len));
 
-                #[allow(clippy::range_minus_one)]
+                #[allow(clippy::cast_possible_truncation)]
+                let max_value = if self.cbz_len > 0 {
+                    (self.cbz_len - 1) as u32
+                } else {
+                    0
+                };
+
+                #[allow(clippy::cast_possible_truncation)]
                 let slider = slider::Slider::new(
                     &mut ready.slider,
-                    0..=self.archive_size - 1,
-                    ready.index,
+                    0..=max_value,
+                    ready.index as u32,
                     Message::SetIndex,
                 );
 
@@ -189,13 +203,22 @@ impl Application for CbzReader {
 /// # Errors
 ///
 /// IO errors will make this fail.
-pub fn run(archive_path: PathBuf, archive_size: i32) -> Result<()> {
-    CbzReader::run(Settings {
+pub fn run<R>(cbz: CbzReader<'static, R>) -> Result<()>
+where
+    R: 'static + Read + Seek + Send,
+{
+    CbzReaderView::run(Settings {
         flags: Flags {
-            archive_path,
-            archive_size,
+            cbz: Arc::new(Mutex::new(cbz)),
         },
-        ..Default::default()
+        id: None,
+        window: window::Settings::default(),
+        default_font: None,
+        default_text_size: 20,
+        text_multithreading: false,
+        antialiasing: false,
+        exit_on_close_request: true,
+        try_opengles_first: false,
     })?;
 
     Ok(())

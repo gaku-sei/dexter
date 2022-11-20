@@ -1,21 +1,17 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use std::{
-    fmt::Display,
-    io::{self, Cursor, Read, Seek, Write},
-    iter::IntoIterator,
-    sync::Arc,
-};
+use std::{fmt::Display, io::Cursor, iter::IntoIterator, sync::Arc};
 
-use anyhow::{anyhow, bail, Error, Result};
+use anyhow::{anyhow, Error, Result};
+use cbz::{CbzWrite, CbzWriter, CbzWriterFinished, CbzWriterInsertionBuilder};
 use futures::{stream, StreamExt, TryStreamExt};
-use log::info;
-use reqwest::Client;
+use log::{error, info};
+use reqwest_middleware::ClientBuilder;
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::Deserialize;
 use tokio::sync::{mpsc::Sender, Mutex};
 use url::Url;
-use zip::{write::FileOptions, ZipWriter};
 
 #[derive(Debug, Deserialize)]
 pub struct SearchTitle {
@@ -271,49 +267,6 @@ pub enum ImageDownloadEvent {
     Done,
 }
 
-/// Index are often ill formatted or invalid (x1, R2, etc...).
-/// This function will clean up the index and add some padding (3).
-///
-/// # Errors
-///
-/// Fails if the filename is empty or the index is invalid (longer than the `expected_length` or not a valid unsigned integer).
-pub fn update_filename_index(
-    filename: impl Into<String>,
-    expected_length: usize,
-) -> Result<String> {
-    let filename = filename.into();
-
-    let mut name_chars = filename.chars();
-
-    let Some(first_char) = name_chars.next() else {
-        bail!("file name is empty");
-    };
-
-    let mut index = if first_char.is_numeric() {
-        first_char.to_string()
-    } else {
-        String::new()
-    };
-
-    #[allow(clippy::while_let_on_iterator)]
-    while let Some(c) = name_chars.next() {
-        if c == '-' {
-            break;
-        }
-
-        index.push(c);
-    }
-
-    if index.len() > expected_length || index.parse::<u16>().is_err() {
-        bail!("invalid index: {index}");
-    }
-
-    Ok(format!(
-        "{index:0>expected_length$}-{}",
-        name_chars.as_str()
-    ))
-}
-
 /// Downloads all images for a given chapter id, and create an archive containing all the downloaded images.
 ///
 /// # Errors
@@ -324,14 +277,15 @@ pub fn update_filename_index(
 pub async fn download_images(
     chapter_id: impl Display,
     tx: Sender<ImageDownloadEvent>,
-) -> Result<Cursor<Vec<u8>>> {
+) -> Result<CbzWriterFinished<Cursor<Vec<u8>>>> {
     let tx = Arc::new(tx);
 
-    let client = Client::new();
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    let client = ClientBuilder::new(reqwest::Client::new())
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build();
 
-    let buffer = Cursor::new(Vec::new());
-
-    let zip = Mutex::new(ZipWriter::new(buffer));
+    let cbz_writer = Mutex::new(CbzWriter::default());
 
     let image_links = get_image_links(chapter_id).await?;
 
@@ -346,7 +300,7 @@ pub async fn download_images(
             let tx = Arc::clone(&tx);
 
             tokio::spawn(async move {
-                info!("Downloading {}", url);
+                info!("Downloading {url}");
 
                 let response = client.get(url).send().await?;
 
@@ -354,69 +308,46 @@ pub async fn download_images(
 
                 tx.send(ImageDownloadEvent::Download).await?;
 
-                Ok::<_, Error>((update_filename_index(filename, 3)?, bytes))
+                Ok::<_, Error>((filename, bytes))
             })
         })
         .buffered(len);
 
     all_images_bytes
         .map_err(|error| anyhow!("join handle error: {error}"))
-        .try_for_each_concurrent(None, |bytes| async {
-            if let Ok((filename, bytes)) = bytes {
-                let mut zip = zip.lock().await;
+        .try_for_each(|res| async {
+            let (filename, bytes) = match res {
+                Ok(ok) => ok,
+                Err(err) => {
+                    error!("impossible to pack image: {err:?}");
 
-                zip.start_file(&filename, FileOptions::default())
-                    .map_err(|_| anyhow!("failed to create archive file {filename}"))?;
+                    return Ok(());
+                }
+            };
 
-                zip.write_all(bytes.as_ref())
-                    .map_err(|_| anyhow!("failed to write content to archive file {filename}"))?;
+            info!("Packing {filename}");
 
-                tx.send(ImageDownloadEvent::Zip)
-                    .await
-                    .map_err(|_| anyhow!("failed to send message to channel"))?;
-            }
+            let mut cbz_writer = cbz_writer.lock().await;
+
+            let insertion = CbzWriterInsertionBuilder::from_filename(&filename)
+                .set_bytes(bytes)
+                .build()?;
+
+            cbz_writer
+                .insert(insertion)
+                .map_err(|_| anyhow!("failed to write content to archive file {filename}"))?;
+
+            tx.send(ImageDownloadEvent::Zip)
+                .await
+                .map_err(|_| anyhow!("failed to send message to channel"))?;
 
             Ok(())
         })
         .await?;
 
-    let zip = zip.lock().await.finish()?;
+    let cbz_writer_finished = cbz_writer.into_inner().finish()?;
 
     tx.send(ImageDownloadEvent::Done).await?;
 
-    Ok(zip)
-}
-
-/// Get the size of a `Reader` which content is a Zip archive.
-///
-/// # Errors
-///
-/// Fails if the archive file couldn't be read.
-pub fn get_reader_size<R>(reader: R) -> Result<usize>
-where
-    R: Read + Seek,
-{
-    let zip = zip::ZipArchive::new(reader)?;
-
-    Ok(zip.len())
-}
-
-/// Get the content of a file that's in a Zip archive `Reader`.
-///
-/// # Errors
-///
-/// Fails if the archive file couldn't be read, or if the index is out of bound.
-pub fn read_by_index<R>(reader: R, index: usize) -> Result<Vec<u8>>
-where
-    R: Read + Seek,
-{
-    let mut zip = zip::ZipArchive::new(reader)?;
-
-    let mut file = zip.by_index(index)?;
-
-    let mut writer = Cursor::new(Vec::new());
-
-    io::copy(&mut file, &mut writer)?;
-
-    Ok(writer.into_inner())
+    Ok(cbz_writer_finished)
 }
