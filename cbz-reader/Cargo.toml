@@ -6,7 +6,10 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-clap = { workspace = true, features = ["derive"] }
+bytes.workspace = true
+camino.workspace = true
+cbz.workspace = true
+clap.workspace = true
 dexter-core.workspace = true
 iced = { workspace = true, features = ["image"] }
 iced_native.workspace = true

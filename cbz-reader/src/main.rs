@@ -1,33 +1,26 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use std::{convert::TryFrom, fs::File, path::PathBuf};
-
 use anyhow::Result;
+use camino::Utf8PathBuf;
+use cbz::CbzReader;
 use cbz_reader::run;
 use clap::Parser;
-use dexter_core::get_reader_size;
 
 #[derive(Parser, Debug)]
 #[clap(about, author, version)]
-pub struct Options {
+pub struct Args {
     /// The path to the cbz archive
     #[clap(short, long)]
-    pub input: String,
+    pub input: Utf8PathBuf,
 }
 
 pub fn main() -> Result<()> {
-    let options = Options::parse();
+    let args = Args::parse();
 
-    let path = PathBuf::from(options.input);
+    let cbz = CbzReader::from_path(args.input)?;
 
-    let file = File::open(path.as_path())?;
-
-    let size = get_reader_size(file)?;
-
-    let size = i32::try_from(size)?;
-
-    run(path, size)?;
+    run(cbz)?;
 
     Ok(())
 }
