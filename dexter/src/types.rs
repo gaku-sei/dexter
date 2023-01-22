@@ -47,10 +47,10 @@ impl Display for Manga {
 
 #[derive(Debug, Clone, Table)]
 pub struct Chapter {
-    #[table(title = "Title")]
-    title: String,
     #[table(title = "ID", justify = "Justify::Right")]
     pub id: String,
+    #[table(title = "Title", display_fn = "display_otional_value")]
+    title: Option<String>,
     #[table(title = "Volume", display_fn = "display_otional_value")]
     volume: Option<String>,
     #[table(title = "Chapter", display_fn = "display_otional_value")]
@@ -63,7 +63,7 @@ impl From<ChapterData> for Chapter {
     fn from(ChapterData { attributes, id }: ChapterData) -> Self {
         Chapter {
             id,
-            title: attributes.title,
+            title: Some(attributes.title),
             volume: attributes.volume,
             chapter: attributes.chapter,
             language: attributes.translated_language,
@@ -93,7 +93,9 @@ impl Display for Chapter {
             write!(f, "{chapter:0>3} - ")?;
         }
 
-        write!(f, "{}", self.title)?;
+        if let Some(title) = &self.title {
+            write!(f, "{}", title)?;
+        }
 
         Ok(())
     }

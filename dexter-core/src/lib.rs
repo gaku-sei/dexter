@@ -94,7 +94,7 @@ pub async fn get_manga(manga_id: impl AsRef<str>) -> Result<MangaResponse> {
 pub struct ChaptersAttributes {
     pub volume: Option<String>,
     pub chapter: Option<String>,
-    pub title: String,
+    pub title: Option<String>,
     #[serde(rename = "translatedLanguage")]
     pub translated_language: Option<String>,
 }
