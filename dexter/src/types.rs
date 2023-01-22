@@ -94,7 +94,7 @@ impl Display for Chapter {
         }
 
         if let Some(title) = &self.title {
-            write!(f, "{}", title)?;
+            write!(f, "{title}")?;
         }
 
         Ok(())
