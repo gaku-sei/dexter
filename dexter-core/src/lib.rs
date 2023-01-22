@@ -276,11 +276,12 @@ pub enum ImageDownloadEvent {
 /// Archive creation errors will also make this fail.
 pub async fn download_images(
     chapter_id: impl Display,
+    download_max_retries: u32,
     tx: Sender<ImageDownloadEvent>,
 ) -> Result<CbzWriterFinished<Cursor<Vec<u8>>>> {
     let tx = Arc::new(tx);
 
-    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(download_max_retries);
     let client = ClientBuilder::new(reqwest::Client::new())
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
         .build();

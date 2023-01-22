@@ -22,6 +22,9 @@ pub struct InteractiveSearch {
     /// Language to use
     #[clap(long, default_value = "en")]
     pub language: String,
+    /// Max retries if image download fails
+    #[clap(long, default_value_t = 3)]
+    pub download_max_retries: u32,
 }
 
 #[derive(Parser, Debug)]
@@ -71,6 +74,9 @@ pub struct Download {
     /// Destination directory, defaults to the current directory
     #[clap(long)]
     pub outdir: Option<PathBuf>,
+    /// Max retries if image download fails
+    #[clap(long, default_value_t = 3)]
+    pub download_max_retries: u32,
 }
 
 #[derive(Subcommand, Debug)]
@@ -95,7 +101,6 @@ pub enum Subcommands {
 #[derive(Parser, Debug)]
 #[clap(about, author, version)]
 pub struct Args {
-    /// Search mangas
     #[clap(subcommand)]
     pub command: Subcommands,
 }
