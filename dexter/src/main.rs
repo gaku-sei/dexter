@@ -89,7 +89,12 @@ async fn find_chapter(manga: &Manga) -> Result<Chapter> {
     }
 }
 
-async fn download(chapter_id: &str, filepath: &Path, open: bool) -> Result<()> {
+async fn download(
+    chapter_id: &str,
+    filepath: &Path,
+    download_max_retries: u32,
+    open: bool,
+) -> Result<()> {
     let (tx, mut rx) = mpsc::channel(32);
 
     let progress_handle = tokio::spawn(async move {
@@ -120,7 +125,7 @@ async fn download(chapter_id: &str, filepath: &Path, open: bool) -> Result<()> {
         Ok::<(), Error>(())
     });
 
-    let cbz_writer_finished = download_images(chapter_id, tx).await?;
+    let cbz_writer_finished = download_images(chapter_id, download_max_retries, tx).await?;
 
     let file = OpenOptions::new()
         .read(true)
@@ -155,6 +160,7 @@ async fn main() -> Result<()> {
             accepts_default_filename,
             outdir,
             language,
+            download_max_retries,
         }) => {
             let manga = match manga_id {
                 Some(manga_id) => get_manga(manga_id).await?.data.into(),
@@ -201,7 +207,7 @@ async fn main() -> Result<()> {
 
             let filepath = outdir.join(filename);
 
-            download(&chapter.id, &filepath, false).await?;
+            download(&chapter.id, &filepath, download_max_retries, false).await?;
 
             println!("CBZ file created");
         }
@@ -248,6 +254,7 @@ async fn main() -> Result<()> {
             filename,
             open,
             outdir,
+            download_max_retries,
         }) => {
             let outdir = outdir.unwrap_or(current_dir()?);
 
@@ -257,7 +264,7 @@ async fn main() -> Result<()> {
 
             let filepath = outdir.join(filename);
 
-            download(&chapter_id, &filepath, open).await?;
+            download(&chapter_id, &filepath, download_max_retries, open).await?;
 
             println!("CBZ file created");
         }
