@@ -15,6 +15,7 @@ pub struct Args {
     pub input: Utf8PathBuf,
 }
 
+#[allow(clippy::missing_errors_doc)]
 pub fn main() -> Result<()> {
     let args = Args::parse();
 
