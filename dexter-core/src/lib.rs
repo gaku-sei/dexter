@@ -3,7 +3,7 @@
 
 use std::{fmt::Display, io::Cursor, iter::IntoIterator, sync::Arc};
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use cbz::{CbzWrite, CbzWriter, CbzWriterFinished, CbzWriterInsertionBuilder};
 use futures::{stream, StreamExt, TryStreamExt};
 use log::{error, info};
@@ -12,6 +12,8 @@ use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::Deserialize;
 use tokio::sync::{mpsc::Sender, Mutex};
 use url::Url;
+
+static MAX_PARALLEL_DOWNLOAD: usize = 10;
 
 #[derive(Debug, Deserialize)]
 pub struct SearchTitle {
@@ -46,7 +48,7 @@ pub async fn search(title: impl Display, limit: u16) -> Result<SearchResponse> {
 
     let response = reqwest::get(url).await?;
 
-    let search_response = response.json().await?;
+    let search_response = response.json().await.context("decoding search result")?;
 
     Ok(search_response)
 }
@@ -85,7 +87,7 @@ pub async fn get_manga(manga_id: impl AsRef<str>) -> Result<MangaResponse> {
 
     let response = reqwest::get(url).await?;
 
-    let manga_response = response.json().await?;
+    let manga_response = response.json().await.context("decoding manga info")?;
 
     Ok(manga_response)
 }
@@ -145,7 +147,7 @@ pub async fn get_chapters(
 
     let response = reqwest::get(url).await?;
 
-    let chapters_response = response.json().await?;
+    let chapters_response = response.json().await.context("decoding chapters info")?;
 
     Ok(chapters_response)
 }
@@ -154,7 +156,7 @@ pub async fn get_chapters(
 pub struct ChapterAttributes {
     pub volume: Option<String>,
     pub chapter: Option<String>,
-    pub title: String,
+    pub title: Option<String>,
     #[serde(rename = "translatedLanguage")]
     pub translated_language: Option<String>,
 }
@@ -196,7 +198,7 @@ pub async fn get_chapter(
 
     let response = reqwest::get(url).await?;
 
-    let chapter_response = response.json().await?;
+    let chapter_response = response.json().await.context("decoding chapter info")?;
 
     Ok(chapter_response)
 }
@@ -236,7 +238,8 @@ pub async fn get_image_links(chapter_id: impl Display) -> Result<Vec<ImageLinkDe
 
     let response = reqwest::get(url).await?;
 
-    let image_links_response: ImageLinksResponse = response.json().await?;
+    let image_links_response: ImageLinksResponse =
+        response.json().await.context("decoding image links")?;
 
     let base_url = image_links_response.base_url;
 
@@ -312,7 +315,7 @@ pub async fn download_images(
                 Ok::<_, Error>((filename, bytes))
             })
         })
-        .buffered(len);
+        .buffered(len.min(MAX_PARALLEL_DOWNLOAD));
 
     all_images_bytes
         .map_err(|error| anyhow!("join handle error: {error}"))

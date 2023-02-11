@@ -63,7 +63,7 @@ impl From<ChapterData> for Chapter {
     fn from(ChapterData { attributes, id }: ChapterData) -> Self {
         Chapter {
             id,
-            title: Some(attributes.title),
+            title: attributes.title,
             volume: attributes.volume,
             chapter: attributes.chapter,
             language: attributes.translated_language,
