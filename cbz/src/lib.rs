@@ -6,17 +6,16 @@ use std::{
     fs::File,
     io::{self, Cursor, Read, Seek, Write},
     marker::PhantomData,
-    ops::Deref,
+    ops::{Deref, DerefMut},
     path::Path,
     result,
 };
 
 use bytes::Bytes;
 use camino::Utf8Path;
-use errors::Error;
 use zip::{read::ZipFile, write::FileOptions, ZipArchive, ZipWriter};
 
-use crate::errors::Result;
+pub use crate::errors::{Error, Result};
 
 mod errors;
 
@@ -26,7 +25,7 @@ mod errors;
 pub static MAX_FILE_NUMBER: usize = u16::MAX as usize;
 
 /// The length of 65535 used to name the inserted file with a proper padding
-static COUNTER_SIZE: usize = 5;
+pub static COUNTER_SIZE: usize = 5;
 
 pub trait Cbz {
     fn len(&self) -> usize;
@@ -37,41 +36,29 @@ pub trait Cbz {
 }
 
 pub trait CbzRead: Cbz {
-    /// Lookup the file at `index` in Cbz and returns a `CbzFile`
+    fn file_names(&self) -> Vec<&str>;
+
+    /// Lookup the file by `name` in Cbz and returns a `CbzFile`
     ///
     /// ## Errors
     ///
     /// Fails if file size is too large to fit a `usize` on host machine
     /// or if the content can't be read
-    fn read_by_index(&mut self, index: usize) -> Result<CbzFile<'_>>;
-
-    /// Lookup the file at `index` in Cbz and returns it converted as `Bytes`
-    ///
-    /// ## Errors
-    ///
-    /// Fails if file size is too large to fit a `usize` on host machine
-    /// or if the content can't be read
-    fn read_to_bytes_by_index(&mut self, index: usize) -> Result<Bytes> {
-        let mut cbz_file = self.read_by_index(index)?;
-
-        let mut buf = Vec::with_capacity(
-            cbz_file
-                .size()
-                .try_into()
-                .map_err(|_| Error::CbzFileSizeConversion)?,
-        );
-
-        cbz_file.read_to_end(&mut buf)?;
-
-        Ok(buf.into())
-    }
+    fn read_by_name(&mut self, name: &str) -> Result<CbzFile<'_>>;
 
     fn for_each<F>(&mut self, mut f: F)
     where
         F: FnMut(Result<CbzFile<'_>>),
     {
-        for index in 0..self.len() {
-            f(self.read_by_index(index));
+        let mut file_names = self
+            .file_names()
+            .into_iter()
+            .map(Into::into)
+            .collect::<Vec<String>>();
+        file_names.sort();
+
+        for file_name in file_names {
+            f(self.read_by_name(&file_name));
         }
     }
 
@@ -85,8 +72,15 @@ pub trait CbzRead: Cbz {
     where
         F: FnMut(Result<CbzFile<'_>>) -> result::Result<(), E>,
     {
-        for index in 0..self.len() {
-            f(self.read_by_index(index))?;
+        let mut file_names = self
+            .file_names()
+            .into_iter()
+            .map(Into::into)
+            .collect::<Vec<String>>();
+        file_names.sort();
+
+        for file_name in file_names {
+            f(self.read_by_name(&file_name))?;
         }
 
         Ok(())
@@ -138,9 +132,9 @@ pub trait CbzWrite {
     /// ## Errors
     ///
     /// Same behavior as `insert_from_bytes_slice_with_options`
-    fn insert_custom_str<'c>(
+    fn insert_custom_str(
         &mut self,
-        insertion: CbzWriterInsertion<'_, '_, CustomStr<'c>>,
+        insertion: CbzWriterInsertion<'_, '_, CustomStr<'_>>,
     ) -> Result<()> {
         let filename = format!(
             "{:0>COUNTER_SIZE$}.{}",
@@ -307,12 +301,12 @@ impl<'a, R> CbzRead for CbzReader<'a, R>
 where
     R: Read + Seek,
 {
-    fn read_by_index(&mut self, index: usize) -> Result<CbzFile<'_>> {
-        if index >= self.len() {
-            return Err(Error::CbzNotFound(index));
-        }
+    fn file_names(&self) -> Vec<&str> {
+        self.archive.file_names().collect()
+    }
 
-        let archive_file = self.archive.by_index(index)?;
+    fn read_by_name(&mut self, name: &str) -> Result<CbzFile<'_>> {
+        let archive_file = self.archive.by_name(name)?;
 
         Ok(archive_file.into())
     }
@@ -327,6 +321,20 @@ impl<'a, R> From<ZipArchive<R>> for CbzReader<'a, R> {
 impl<'a, R> From<CbzReader<'a, R>> for ZipArchive<R> {
     fn from(cbz: CbzReader<'a, R>) -> Self {
         cbz.archive
+    }
+}
+
+impl<'a, R> Deref for CbzReader<'a, R> {
+    type Target = ZipArchive<R>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.archive
+    }
+}
+
+impl<'a, R> DerefMut for CbzReader<'a, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.archive
     }
 }
 
@@ -587,7 +595,7 @@ impl<'a, 'b> CbzWriterInsertionBuilder<'a, 'b> {
 
         Ok(CbzWriterInsertion {
             extension,
-            file_options: self.file_options.unwrap_or_else(FileOptions::default),
+            file_options: self.file_options.unwrap_or_default(),
             bytes,
             type_,
         })

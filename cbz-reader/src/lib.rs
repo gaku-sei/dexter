@@ -1,225 +1,139 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
+#![allow(non_snake_case)]
 
-use std::{
-    io::{Read, Seek},
-    sync::{Arc, Mutex},
-};
+use std::marker::PhantomData;
 
-use anyhow::Result;
-use bytes::Bytes;
-use cbz::{Cbz, CbzRead, CbzReader};
-use iced::{
-    executor, image, slider, window, Application, Column, Command, Element, Settings, Subscription,
-    Text,
-};
-use iced_native::Event;
+use base64::Engine;
+use cbz::CbzRead;
+use dioxus::{html::input_data::keyboard_types::Key, prelude::*};
+use dioxus_desktop::{Config, WindowBuilder};
+use log::debug;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("cbz error: {0}")]
+    Cbz(#[from] cbz::Error),
+
+    #[error("zip error: {0}")]
+    Zip(#[from] zip::result::ZipError),
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug)]
-struct CbzReaderReady {
-    image_handle: image::Handle,
-    image_viewer: image::viewer::State,
-    index: usize,
-    slider: slider::State,
+pub struct AppProps<'a> {
+    imgs: Vec<String>,
+    _phantom: PhantomData<&'a ()>,
 }
 
-#[derive(Debug)]
-enum CbzReaderState {
-    Init,
-    Ready(CbzReaderReady),
-}
-
-#[derive(Debug)]
-pub struct CbzReaderView<'a, R> {
-    cbz: Arc<Mutex<CbzReader<'a, R>>>,
-    cbz_len: usize,
-    state: CbzReaderState,
-}
-
-#[derive(Debug, Clone)]
-pub enum Message {
-    EventOccurred(Event),
-    SetImage(Bytes),
-    SetImageError,
-    SetIndex(u32),
-}
-
-#[derive(Debug)]
-pub struct Flags<'a, R> {
-    cbz: Arc<Mutex<CbzReader<'a, R>>>,
-}
-
-impl<'a, R> CbzReaderView<'a, R>
-where
-    R: Read + Seek,
-{
-    #[allow(clippy::unused_async)]
-    async fn read_from_cbz(cbz: Arc<Mutex<CbzReader<'a, R>>>, index: usize) -> Result<Bytes> {
-        let mut cbz = cbz.lock().unwrap();
-
-        let bytes = cbz.read_to_bytes_by_index(index)?;
-
-        Ok(bytes)
-    }
-
-    fn handle_cbz_bytes(result: Result<Bytes>) -> Message {
-        match result {
-            Ok(bytes) => Message::SetImage(bytes),
-            Err(_) => Message::SetImageError,
-        }
-    }
-}
-
-impl<R> Application for CbzReaderView<'static, R>
-where
-    R: 'static + Read + Seek + Send,
-{
-    type Executor = executor::Default;
-    type Message = Message;
-    type Flags = Flags<'static, R>;
-
-    fn new(flags: Self::Flags) -> (Self, Command<Message>) {
-        let cbz_len = flags.cbz.lock().unwrap().len();
-
-        let cbz_reader = Self {
-            cbz: flags.cbz,
-            cbz_len,
-            state: CbzReaderState::Init,
-        };
-
-        let read_first_file_future = Self::read_from_cbz(cbz_reader.cbz.clone(), 0);
-
-        (
-            cbz_reader,
-            Command::perform(read_first_file_future, Self::handle_cbz_bytes),
-        )
-    }
-
-    fn title(&self) -> String {
-        String::from("CbzReader - Iced")
-    }
-
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        match message {
-            Message::EventOccurred(Event::Keyboard(iced::keyboard::Event::KeyPressed {
-                key_code: iced::keyboard::KeyCode::Right,
-                ..
-            })) => {
-                if let CbzReaderState::Ready(ref mut ready) = self.state {
-                    if ready.index < self.cbz_len - 1 {
-                        ready.index += 1;
-                    }
-
-                    return Command::perform(
-                        Self::read_from_cbz(self.cbz.clone(), ready.index),
-                        Self::handle_cbz_bytes,
-                    );
-                }
-            }
-            Message::EventOccurred(Event::Keyboard(iced::keyboard::Event::KeyPressed {
-                key_code: iced::keyboard::KeyCode::Left,
-                ..
-            })) => {
-                if let CbzReaderState::Ready(ref mut ready) = self.state {
-                    if ready.index > 0 {
-                        ready.index -= 1;
-                    }
-
-                    return Command::perform(
-                        Self::read_from_cbz(self.cbz.clone(), ready.index),
-                        Self::handle_cbz_bytes,
-                    );
-                }
-            }
-            Message::SetIndex(new_index) => {
-                if let CbzReaderState::Ready(ref mut ready) = self.state {
-                    if ready.index < self.cbz_len {
-                        ready.index = new_index as usize;
-                    }
-
-                    return Command::perform(
-                        Self::read_from_cbz(self.cbz.clone(), ready.index),
-                        Self::handle_cbz_bytes,
-                    );
-                }
-            }
-            Message::SetImage(image) => {
-                let image_handle = image::Handle::from_memory(image.to_vec());
-
-                match self.state {
-                    CbzReaderState::Ready(ref mut ready) => ready.image_handle = image_handle,
-                    CbzReaderState::Init => {
-                        self.state = CbzReaderState::Ready(CbzReaderReady {
-                            image_handle,
-                            image_viewer: image::viewer::State::default(),
-                            index: 0,
-                            slider: slider::State::default(),
-                        });
-                    }
-                }
-            }
-
-            Message::EventOccurred(_) | Message::SetImageError => (),
-        }
-
-        Command::none()
-    }
-
-    fn subscription(&self) -> Subscription<Message> {
-        iced_native::subscription::events().map(Message::EventOccurred)
-    }
-
-    fn view(&mut self) -> Element<Message> {
-        match self.state {
-            CbzReaderState::Init => Column::new().push(Text::new("Loading").size(50)).into(),
-            CbzReaderState::Ready(ref mut ready) => {
-                let text = Text::new(format!("{}/{}", ready.index + 1, self.cbz_len));
-
-                #[allow(clippy::cast_possible_truncation)]
-                let max_value = if self.cbz_len > 0 {
-                    (self.cbz_len - 1) as u32
-                } else {
-                    0
-                };
-
-                #[allow(clippy::cast_possible_truncation)]
-                let slider = slider::Slider::new(
-                    &mut ready.slider,
-                    0..=max_value,
-                    ready.index as u32,
-                    Message::SetIndex,
-                );
-
-                let image = image::Viewer::new(&mut ready.image_viewer, ready.image_handle.clone());
-
-                Column::new().push(text).push(slider).push(image).into()
-            }
-        }
-    }
-}
-
-/// Runs the CBZ Reader application.
+/// Starts a new window with the CBZ reader inside
 ///
-/// # Errors
+/// ## Errors
 ///
-/// IO errors will make this fail.
-pub fn run<R>(cbz: CbzReader<'static, R>) -> Result<()>
-where
-    R: 'static + Read + Seek + Send,
-{
-    CbzReaderView::run(Settings {
-        flags: Flags {
-            cbz: Arc::new(Mutex::new(cbz)),
-        },
-        id: None,
-        window: window::Settings::default(),
-        default_font: None,
-        default_text_size: 20,
-        text_multithreading: false,
-        antialiasing: false,
-        exit_on_close_request: true,
-        try_opengles_first: false,
+/// Fails on cbz read error
+pub fn run(cbz_reader: &mut impl CbzRead) -> Result<()> {
+    let mut imgs = Vec::new();
+    cbz_reader.try_for_each(|file| {
+        let mut file = file?;
+        let bytes = file.to_bytes()?;
+        let base64 = base64::engine::general_purpose::STANDARD.encode(&*bytes);
+        imgs.push(base64);
+
+        Ok::<_, Error>(())
     })?;
 
+    dioxus_desktop::launch_with_props(
+        App,
+        AppProps {
+            imgs,
+            _phantom: PhantomData,
+        },
+        Config::default()
+            .with_custom_head(r#"<script src="https://cdn.tailwindcss.com"></script>"#.to_string())
+            .with_window(WindowBuilder::default().with_title("Cbz Reader")),
+    );
+
     Ok(())
+}
+
+fn App<'a>(cx: Scope<'a, AppProps>) -> Element<'a> {
+    let imgs = &cx.props.imgs;
+    let max_page = use_state(cx, || cx.props.imgs.len());
+    let current_page = use_state(cx, || 1_usize);
+    let img = use_state(cx, || cx.props.imgs.get(0).cloned());
+
+    cx.render(rsx! {
+        div {
+            class: "p-2 w-full h-screen flex flex-col gap-1 items-center outline-none",
+            autofocus: true,
+            tabindex: -1,
+            onkeydown: move |evt| {
+                match evt.key() {
+                    Key::ArrowLeft => {
+                        let page = *current_page.get();
+                        if page == 1 {
+                            return;
+                        }
+
+                        current_page.set(page - 1);
+                        debug!("reading index {}", page - 2);
+                        img.set(imgs.get(page - 2).cloned());
+                    },
+                    Key::ArrowRight => {
+                        let page = *current_page.get();
+                        if page == *max_page.get() {
+                            return;
+                        }
+
+                        current_page.set(page + 1);
+                        debug!("reading index {}", page);
+                        img.set(imgs.get(page).cloned());
+                    },
+                    _ => {}
+                }
+            },
+            if let Some(img) = img.get() {
+                rsx!(img {
+                    class: "h-[calc(100%-2rem)]",
+                    src: "data:image/png;base64,{img}"
+                })
+            }
+            div {
+                class: "flex flex-row items-center justify-center gap-1 h-8",
+                button {
+                    class: "border rounded-sm px-2 py-1 bg-gray-100 hover:bg-gray-50 cursor-pointer",
+                    onclick: move |_evt| {
+                        let page = *current_page.get();
+                        if page == 1 {
+                            return;
+                        }
+
+                        current_page.set(page - 1);
+                        debug!("reading index {}", page - 2);
+                        img.set(imgs.get(page - 2).cloned());
+                    },
+                    "prev"
+                },
+                span {
+                    class: "border rounded-sm px-2 py-1 bg-gray-100",
+                     "{current_page} / {max_page}"
+                },
+                button {
+                    class: "border rounded-sm px-2 py-1 bg-gray-100 hover:bg-gray-50 cursor-pointer",
+                    onclick: move |_evt| {
+                        let page = *current_page.get();
+                        if page == *max_page.get() {
+                            return;
+                        }
+
+                        current_page.set(page + 1);
+                        debug!("reading index {}", page);
+                        img.set(imgs.get(page).cloned());
+                    },
+                    "next"
+                },
+            }
+        }
+    })
 }

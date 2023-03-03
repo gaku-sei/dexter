@@ -1,3 +1,17 @@
+# Dexter, a cbz toolbox
+
+The repository host multiple cli (and gui) tools that help manipulating [cbz files](https://fileinfo.com/extension/cbz).
+It also offers a `cbz` lib crate that exposes some of the code used internally.
+
+Tools:
+
+- `dexter` - cli - A simple MangaDex client
+- `sinister` - gui - _in progress_ - A gui client for Dexter
+
+- `cbz-reader` - gui - A dead simple cbz file reader
+- `cbz-merge` - cli - Merge cbz files together
+- `cbz-pack` - cli - pack images into a cbz file
+
 ## Dexter
 
 This small cli allows you to search for mangas hosted on MangaDex and read them.
@@ -8,21 +22,19 @@ This repository also contains a small `cbz-reader` which is not meant to be used
 ### Usage
 
 ```
-dexter 0.1.0
+Usage: dexter.exe <COMMAND>
 
-USAGE:
-    dexter <SUBCOMMAND>
+Commands:
+  interactive-search  Interactive Search
+  search              Search for mangas
+  chapters            Search for chapters
+  image-links         Display links to all the images contained in a chapter
+  download            Download and pack all the images contained in a chapter
+  help                Print this message or the help of the given subcommand(s)
 
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-SUBCOMMANDS:
-    chapters       Search for chapters
-    download       Download and pack all the images contained in a chapter
-    help           Prints this message or the help of the given subcommand(s)
-    image-links    Display links to all the images contained in a chapter
-    search         Search for mangas
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
 ```
 
 ### Example
@@ -70,3 +82,30 @@ dexter download -c 07bf2a09-f30d-410f-aba1-025e2d27a88f -o
 ```
 
 That'll automatically download the whole chapter as a CBZ file and open it in the simple `cbz-reader` which source is also available in this repository.
+
+## Cbz Reader
+
+```bash
+cbz-reader --archive-path archive.cbz
+```
+
+## Cbz Merge
+
+This will look for all the Cbz archives file foundable in `path` and which file name contains `something` and merge into `output/merged_archive.cbz`:
+
+```bash
+cbz-merge --archives-glob "path/**/*something*" --outdir "output" --name "merged_archive"
+```
+
+## Cbz Reader
+
+Takes all the `png` files under `source` and pack them into the `archive.cbz` file:
+
+```bash
+cbz-pack -- --files-glob "source/*.png" --name archive --autosplit
+```
+
+Options inclue:
+- `--autosplit`: split in 2 landscape images
+- `--contrast`: change contrast
+- `--brightness`: change brightness
