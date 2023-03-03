@@ -6,6 +6,7 @@ use std::{
     fs::File,
     io::{self, Cursor, Read, Seek, Write},
     marker::PhantomData,
+    ops::Deref,
     path::Path,
     result,
 };
@@ -93,18 +94,57 @@ pub trait CbzRead: Cbz {
 }
 
 pub trait CbzWrite {
-    fn current_size(&self) -> usize;
+    fn size(&self) -> usize;
 
     /// High level `insert` method, prefer this over the raw `insert_from_bytes_slice_with_options` method
     ///
     /// ## Errors
     ///
     /// Same behavior as `insert_from_bytes_slice_with_options`
-    fn insert(&mut self, insertion: CbzWriterInsertion<'_, '_>) -> Result<()> {
+    fn insert(&mut self, insertion: CbzWriterInsertion<'_, '_, Auto>) -> Result<()> {
         let filename = format!(
             "{:0>COUNTER_SIZE$}.{}",
-            self.current_size() + 1,
+            self.size() + 1,
             insertion.extension
+        );
+
+        self.insert_from_bytes_slice_with_options(
+            filename,
+            &insertion.bytes,
+            insertion.file_options,
+        )
+    }
+
+    /// High level `insert_at` method, prefer this over the raw `insert_from_bytes_slice_with_options` method
+    ///
+    /// ## Errors
+    ///
+    /// Same behavior as `insert_from_bytes_slice_with_options`
+    fn insert_at(&mut self, insertion: CbzWriterInsertion<'_, '_, Indexed>) -> Result<()> {
+        let filename = format!(
+            "{:0>COUNTER_SIZE$}.{}",
+            *insertion.type_, insertion.extension
+        );
+
+        self.insert_from_bytes_slice_with_options(
+            filename,
+            &insertion.bytes,
+            insertion.file_options,
+        )
+    }
+
+    /// High level `insert_custom_str` method, prefer this over the raw `insert_from_bytes_slice_with_options` method
+    ///
+    /// ## Errors
+    ///
+    /// Same behavior as `insert_from_bytes_slice_with_options`
+    fn insert_custom_str<'c>(
+        &mut self,
+        insertion: CbzWriterInsertion<'_, '_, CustomStr<'c>>,
+    ) -> Result<()> {
+        let filename = format!(
+            "{:0>COUNTER_SIZE$}.{}",
+            &*insertion.type_, insertion.extension
         );
 
         self.insert_from_bytes_slice_with_options(
@@ -292,7 +332,7 @@ impl<'a, R> From<CbzReader<'a, R>> for ZipArchive<R> {
 
 pub struct CbzWriter<'a, W: Write + Seek> {
     archive: ZipWriter<W>,
-    current_size: usize,
+    size: usize,
     _lifetime: PhantomData<&'a ()>,
 }
 
@@ -303,7 +343,7 @@ where
     pub fn new(archive: ZipWriter<W>) -> Self {
         Self {
             archive,
-            current_size: 0,
+            size: 0,
             _lifetime: PhantomData,
         }
     }
@@ -343,7 +383,7 @@ where
     W: Write + Seek,
 {
     fn len(&self) -> usize {
-        self.current_size
+        self.size
     }
 }
 
@@ -351,8 +391,8 @@ impl<'a, W> CbzWrite for CbzWriter<'a, W>
 where
     W: Write + Seek,
 {
-    fn current_size(&self) -> usize {
-        self.current_size
+    fn size(&self) -> usize {
+        self.size
     }
 
     fn insert_from_bytes_slice_with_options(
@@ -361,7 +401,7 @@ where
         bytes: &[u8],
         file_options: FileOptions,
     ) -> Result<()> {
-        if self.current_size >= MAX_FILE_NUMBER {
+        if self.size >= MAX_FILE_NUMBER {
             return Err(Error::CbzTooLarge(MAX_FILE_NUMBER));
         }
 
@@ -369,7 +409,7 @@ where
 
         self.archive.write_all(bytes)?;
 
-        self.current_size += 1;
+        self.size += 1;
 
         Ok(())
     }
@@ -393,10 +433,35 @@ where
     }
 }
 
-pub struct CbzWriterInsertion<'a, 'b> {
+pub struct ManualCbzWriter<'a, W: Write + Seek>(CbzWriter<'a, W>);
+
+pub struct Indexed(usize);
+
+impl Deref for Indexed {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct CustomStr<'a>(&'a str);
+
+impl<'a> Deref for CustomStr<'a> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+pub struct Auto;
+
+pub struct CbzWriterInsertion<'a, 'b, T> {
     extension: Cow<'a, str>,
     file_options: FileOptions,
     bytes: Cow<'b, [u8]>,
+    type_: T,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -464,12 +529,37 @@ impl<'a, 'b> CbzWriterInsertionBuilder<'a, 'b> {
         Ok(self)
     }
 
-    /// Builds the `CbzWriterInsertion` itself
+    /// Builds a `CbzWriterInsertion`
     ///
     /// ## Errors
     ///
     /// Fails if the `bytes` field hasn't been populated or if the extension is empty
-    pub fn build(self) -> Result<CbzWriterInsertion<'a, 'b>> {
+    pub fn build(self) -> Result<CbzWriterInsertion<'a, 'b, Auto>> {
+        self.inner_build(Auto)
+    }
+
+    /// Builds a `CbzWriterInsertion`
+    ///
+    /// ## Errors
+    ///
+    /// Fails if the `bytes` field hasn't been populated or if the extension is empty
+    pub fn build_indexed(self, index: usize) -> Result<CbzWriterInsertion<'a, 'b, Indexed>> {
+        self.inner_build(Indexed(index))
+    }
+
+    /// Builds a `CbzWriterInsertion`
+    ///
+    /// ## Errors
+    ///
+    /// Fails if the `bytes` field hasn't been populated or if the extension is empty
+    pub fn build_custom_str<'c>(
+        self,
+        s: &'c str,
+    ) -> Result<CbzWriterInsertion<'a, 'b, CustomStr<'c>>> {
+        self.inner_build(CustomStr(s))
+    }
+
+    fn inner_build<T>(self, type_: T) -> Result<CbzWriterInsertion<'a, 'b, T>> {
         let Some(bytes) = self.bytes else {
             return Err(Error::CbzInsertionNoBytes);
         };
@@ -499,6 +589,7 @@ impl<'a, 'b> CbzWriterInsertionBuilder<'a, 'b> {
             extension,
             file_options: self.file_options.unwrap_or_else(FileOptions::default),
             bytes,
+            type_,
         })
     }
 }
