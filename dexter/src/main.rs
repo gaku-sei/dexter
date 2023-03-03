@@ -136,9 +136,9 @@ async fn download(
     cbz_writer_finished.write_to(&file)?;
 
     if open {
-        let cbz = CbzReader::from_reader(file)?;
+        let mut cbz = CbzReader::from_reader(file)?;
 
-        run(cbz)?;
+        run(&mut cbz)?;
     }
 
     progress_handle.await??;

@@ -13,7 +13,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Context, Error, Result};
 use camino::{Utf8Path, Utf8PathBuf};
-use cbz::{CbzWrite, CbzWriter, CbzWriterInsertionBuilder};
+use cbz::{CbzWrite, CbzWriter, CbzWriterInsertionBuilder, COUNTER_SIZE};
 use clap::{Parser, ValueEnum};
 use futures::future::join_all;
 use glob::glob;
@@ -186,19 +186,19 @@ async fn main() -> Result<()> {
                     img_left.insert_into_cbz_writer(
                         &mut *out_cbz_writer,
                         ImageFormat::Png,
-                        format!("{index}-1"),
+                        format!("{index:0>COUNTER_SIZE$}-1"),
                     )?;
                     img_right.insert_into_cbz_writer(
                         &mut *out_cbz_writer,
                         ImageFormat::Png,
-                        format!("{index}-2"),
+                        format!("{index:0>COUNTER_SIZE$}-2"),
                     )?;
                 } else {
                     let mut out_cbz_writer = out_cbz_writer.lock().unwrap();
                     img.insert_into_cbz_writer(
                         &mut *out_cbz_writer,
                         ImageFormat::Png,
-                        format!("{index}"),
+                        format!("{index:0>COUNTER_SIZE$}"),
                     )?;
                 }
 
