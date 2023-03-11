@@ -19,9 +19,9 @@ use futures::future::try_join_all;
 use glob::glob;
 use image::{io::Reader as ImageReader, DynamicImage, ImageFormat};
 #[cfg(feature = "pdf")]
-use pdf::file::File as PdfFile;
 use pdf::{
     enc::StreamFilter,
+    file::FileOptions as PdfFileOptions,
     object::{Resolve, XObject},
 };
 use tracing::{debug, error};
@@ -265,8 +265,9 @@ async fn get_images_from_glob(glob_expr: impl AsRef<str>) -> Result<Vec<Result<(
     .map_err(Into::into)
 }
 
+#[cfg(feature = "pdf")]
 async fn get_images_from_pdf(path: impl AsRef<Path>) -> Result<Vec<Result<(usize, Image)>>> {
-    let pdf = Arc::new(PdfFile::open(path)?);
+    let pdf = Arc::new(PdfFileOptions::cached().open(path)?);
     try_join_all(pdf.pages().enumerate().map(|(index, page)| {
         let pdf = Arc::clone(&pdf);
         tokio::spawn(async move {

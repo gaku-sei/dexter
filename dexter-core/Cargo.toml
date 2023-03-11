@@ -14,5 +14,6 @@ reqwest = { workspace = true, features = ["json"] }
 reqwest-middleware.workspace = true
 reqwest-retry.workspace = true
 serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["full"] }
+serde_json = "*"
+tokio.workspace = true
 url.workspace = true

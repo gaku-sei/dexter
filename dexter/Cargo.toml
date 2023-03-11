@@ -17,4 +17,4 @@ tracing-subscriber.workspace = true
 indicatif.workspace = true
 tracing.workspace = true
 sanitize-filename.workspace = true
-tokio = { workspace = true, features = ["full"] }
+tokio.workspace = true

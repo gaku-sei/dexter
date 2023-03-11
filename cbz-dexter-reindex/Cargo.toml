@@ -11,5 +11,5 @@ clap.workspace = true
 cbz.workspace = true
 dexter-core.workspace = true
 tracing-subscriber.workspace = true
-tokio = { workspace = true, features = ["full"] }
+tokio.workspace = true
 zip.workspace = true
