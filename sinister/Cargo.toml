@@ -1,0 +1,21 @@
+[package]
+name = "sinister"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true
+camino.workspace = true
+cbz.workspace = true
+clap = { workspace = true, features = ["derive"] }
+dexter-core.workspace = true
+dioxus.workspace = true
+dioxus-desktop.workspace = true
+home.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+zip.workspace = true

@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use std::{fmt::Display, io::Cursor, iter::IntoIterator, sync::Arc};
+use std::{fmt::Display, io::Cursor, iter::IntoIterator};
 
 use anyhow::{anyhow, Context, Error, Result};
 use cbz::{CbzWrite, CbzWriter, CbzWriterFinished, CbzWriterInsertionBuilder};
@@ -15,23 +15,23 @@ use url::Url;
 
 static MAX_PARALLEL_DOWNLOAD: usize = 10;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct SearchTitle {
     pub en: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct SearchAttributes {
     pub title: SearchTitle,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct SearchData {
     pub attributes: SearchAttributes,
     pub id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct SearchResponse {
     pub data: Vec<SearchData>,
 }
@@ -41,7 +41,7 @@ pub struct SearchResponse {
 /// # Errors
 ///
 /// Any network or request error will make this function fail.
-pub async fn search(title: impl Display, limit: u16) -> Result<SearchResponse> {
+pub async fn search(title: impl Display, limit: u32) -> Result<SearchResponse> {
     let url = format!(
         "https://api.mangadex.org/manga?title={title}&limit={limit}&order[relevance]=desc",
     );
@@ -53,23 +53,23 @@ pub async fn search(title: impl Display, limit: u16) -> Result<SearchResponse> {
     Ok(search_response)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct MangaTitle {
     pub en: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct MangaAttributes {
     pub title: MangaTitle,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct MangaData {
     pub id: String,
     pub attributes: MangaAttributes,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct MangaResponse {
     pub data: MangaData,
 }
@@ -92,7 +92,7 @@ pub async fn get_manga(manga_id: impl AsRef<str>) -> Result<MangaResponse> {
     Ok(manga_response)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct ChaptersAttributes {
     pub volume: Option<String>,
     pub chapter: Option<String>,
@@ -101,14 +101,17 @@ pub struct ChaptersAttributes {
     pub translated_language: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct ChaptersData {
     pub id: String,
     pub attributes: ChaptersAttributes,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
 pub struct ChaptersResponse {
+    pub limit: u32,
+    pub offset: u32,
+    pub total: u32,
     pub data: Vec<ChaptersData>,
 }
 
@@ -119,7 +122,8 @@ pub struct ChaptersResponse {
 /// Any network or request error will make this function fail.
 pub async fn get_chapters(
     manga_id: impl AsRef<str>,
-    limit: u16,
+    limit: u32,
+    offset: u32,
     volumes: impl IntoIterator<Item = impl AsRef<str>>,
     chapters: impl IntoIterator<Item = impl AsRef<str>>,
 ) -> Result<ChaptersResponse> {
@@ -127,12 +131,13 @@ pub async fn get_chapters(
 
     {
         let mut query = url.query_pairs_mut();
-
         query.append_pair("manga", manga_id.as_ref());
-
         query.append_pair("limit", &limit.to_string());
-
         query.append_pair("order[chapter]", "desc");
+
+        if offset > 0 {
+            query.append_pair("offset", &offset.to_string());
+        }
 
         for chapter in chapters {
             query.append_pair("chapter[]", chapter.as_ref());
@@ -146,7 +151,6 @@ pub async fn get_chapters(
     }
 
     let response = reqwest::get(url).await?;
-
     let chapters_response = response.json().await.context("decoding chapters info")?;
 
     Ok(chapters_response)
@@ -282,8 +286,6 @@ pub async fn download_images(
     download_max_retries: u32,
     tx: Sender<ImageDownloadEvent>,
 ) -> Result<CbzWriterFinished<Cursor<Vec<u8>>>> {
-    let tx = Arc::new(tx);
-
     let retry_policy = ExponentialBackoff::builder().build_with_max_retries(download_max_retries);
     let client = ClientBuilder::new(reqwest::Client::new())
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
@@ -300,9 +302,7 @@ pub async fn download_images(
     let all_images_bytes = stream::iter(image_links)
         .map(|ImageLinkDescription { filename, url }| {
             let client = client.clone();
-
-            let tx = Arc::clone(&tx);
-
+            let tx = tx.clone();
             tokio::spawn(async move {
                 info!("Downloading {url}");
 

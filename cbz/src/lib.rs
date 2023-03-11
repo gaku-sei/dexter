@@ -612,6 +612,26 @@ impl<W> CbzWriterFinished<W> {
     }
 }
 
+impl<T: AsRef<[u8]>> AsRef<[u8]> for CbzWriterFinished<Cursor<T>> {
+    fn as_ref(&self) -> &[u8] {
+        self.writer.get_ref().as_ref()
+    }
+}
+
+impl<W> Deref for CbzWriterFinished<W> {
+    type Target = W;
+
+    fn deref(&self) -> &Self::Target {
+        &self.writer
+    }
+}
+
+impl<W> DerefMut for CbzWriterFinished<W> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
+    }
+}
+
 impl CbzWriterFinished<Cursor<Vec<u8>>> {
     /// Writes self into provided writer
     ///
