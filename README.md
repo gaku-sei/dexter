@@ -86,7 +86,7 @@ That'll automatically download the whole chapter as a CBZ file and open it in th
 ## Cbz Reader
 
 ```bash
-cbz-reader --archive-path archive.cbz
+cbz-reader archive.cbz
 ```
 
 ## Cbz Merge
@@ -102,7 +102,13 @@ cbz-merge --archives-glob "path/**/*something*" --outdir "output" --name "merged
 Takes all the `png` files under `source` and pack them into the `archive.cbz` file:
 
 ```bash
-cbz-pack -- --files-glob "source/*.png" --name archive --autosplit
+cbz-pack "source/*.png" --name archive --autosplit
+```
+
+You can also autoextract images from a pdf:
+
+```bash
+cbz-pack source.pdf --pdf --name archive
 ```
 
 Options inclue:
