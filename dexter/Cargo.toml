@@ -13,8 +13,8 @@ clap = { workspace = true, features = ["derive"] }
 cli-table.workspace = true
 dexter-core.workspace = true
 dialoguer.workspace = true
-env_logger.workspace = true
+tracing-subscriber.workspace = true
 indicatif.workspace = true
-log.workspace = true
+tracing.workspace = true
 sanitize-filename.workspace = true
 tokio = { workspace = true, features = ["full"] }

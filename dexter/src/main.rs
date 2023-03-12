@@ -148,7 +148,7 @@ async fn download(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let args = Args::parse();
 

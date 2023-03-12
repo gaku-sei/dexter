@@ -12,7 +12,7 @@ cbz.workspace = true
 clap = { workspace = true, features = ["derive"] }
 dioxus.workspace = true
 dioxus-desktop.workspace = true
-env_logger.workspace = true
-log.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
 thiserror.workspace = true
 zip.workspace = true

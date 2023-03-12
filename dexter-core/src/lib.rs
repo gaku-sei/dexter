@@ -6,11 +6,11 @@ use std::{fmt::Display, io::Cursor, iter::IntoIterator, sync::Arc};
 use anyhow::{anyhow, Context, Error, Result};
 use cbz::{CbzWrite, CbzWriter, CbzWriterFinished, CbzWriterInsertionBuilder};
 use futures::{stream, StreamExt, TryStreamExt};
-use log::{error, info};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::Deserialize;
 use tokio::sync::{mpsc::Sender, Mutex};
+use tracing::{error, info};
 use url::Url;
 
 static MAX_PARALLEL_DOWNLOAD: usize = 10;
