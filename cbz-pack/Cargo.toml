@@ -14,5 +14,10 @@ futures.workspace = true
 glob.workspace = true
 image.workspace = true
 log.workspace = true
+pdf = { workspace = true, optional = true }
 sanitize-filename.workspace = true
 tokio.workspace = true
+
+[features]
+default = ["pdf"]
+pdf = ["dep:pdf"]

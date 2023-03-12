@@ -2,8 +2,6 @@
 #![deny(clippy::pedantic)]
 #![allow(non_snake_case)]
 
-use std::marker::PhantomData;
-
 use base64::Engine;
 use cbz::CbzRead;
 use dioxus::{html::input_data::keyboard_types::Key, prelude::*};
@@ -22,9 +20,8 @@ pub enum Error {
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug)]
-pub struct AppProps<'a> {
+pub struct AppProps {
     imgs: Vec<String>,
-    _phantom: PhantomData<&'a ()>,
 }
 
 /// Starts a new window with the CBZ reader inside
@@ -45,10 +42,7 @@ pub fn run(cbz_reader: &mut impl CbzRead) -> Result<()> {
 
     dioxus_desktop::launch_with_props(
         App,
-        AppProps {
-            imgs,
-            _phantom: PhantomData,
-        },
+        AppProps { imgs },
         Config::default()
             .with_custom_head(r#"<script src="https://cdn.tailwindcss.com"></script>"#.to_string())
             .with_window(WindowBuilder::default().with_title("Cbz Reader")),
@@ -57,7 +51,7 @@ pub fn run(cbz_reader: &mut impl CbzRead) -> Result<()> {
     Ok(())
 }
 
-fn App<'a>(cx: Scope<'a, AppProps>) -> Element<'a> {
+fn App(cx: Scope<AppProps>) -> Element {
     let imgs = &cx.props.imgs;
     let max_page = use_state(cx, || cx.props.imgs.len());
     let current_page = use_state(cx, || 1_usize);
