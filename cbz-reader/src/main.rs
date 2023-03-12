@@ -14,7 +14,7 @@ pub struct Args {
 }
 
 fn main() -> Result<()> {
-    env_logger::init();
+    tracing_subscriber::fmt::init();
     let args = Args::parse();
     let mut cbz = CbzReader::from_path(args.archive_path)?;
     cbz_reader::run(&mut cbz)?;

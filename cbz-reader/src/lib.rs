@@ -6,7 +6,7 @@ use base64::Engine;
 use cbz::CbzRead;
 use dioxus::{html::input_data::keyboard_types::Key, prelude::*};
 use dioxus_desktop::{Config, WindowBuilder};
-use log::debug;
+use tracing::debug;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

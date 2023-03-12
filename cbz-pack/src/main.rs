@@ -18,13 +18,13 @@ use clap::{Parser, ValueEnum};
 use futures::future::try_join_all;
 use glob::glob;
 use image::{io::Reader as ImageReader, DynamicImage, ImageFormat};
-use log::{debug, error};
 #[cfg(feature = "pdf")]
 use pdf::file::File as PdfFile;
 use pdf::{
     enc::StreamFilter,
     object::{Resolve, XObject},
 };
+use tracing::{debug, error};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum ReadingOrder {
@@ -160,7 +160,7 @@ impl Image {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let args = Args::parse();
     let Ok(current_dir) = Utf8PathBuf::from_path_buf(env::current_dir()?) else {
