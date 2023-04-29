@@ -34,7 +34,7 @@ pub struct Search {
     pub title: String,
     /// Limit how many results are displayed (lower is faster)
     #[clap(short, long, default_value = "5")]
-    pub limit: u16,
+    pub limit: u32,
 }
 
 #[derive(Parser, Debug)]
@@ -44,7 +44,7 @@ pub struct Chapters {
     pub manga_id: String,
     /// Limit how many chapters are displayed (lower is faster)
     #[clap(short, long, default_value = "100")]
-    pub limit: u16,
+    pub limit: u32,
     /// Specify which volume(s) you want to get data from
     #[clap(short, long)]
     pub volumes: Vec<String>,

@@ -63,6 +63,7 @@ async fn find_chapter(manga: &Manga) -> Result<Chapter> {
     let chapter_response = get_chapters(
         &manga.id,
         10,
+        0,
         Vec::<&str>::new(),
         vec![chapter_number.to_string()],
     )
@@ -229,7 +230,7 @@ async fn main() -> Result<()> {
             chapters,
             volumes,
         }) => {
-            let chapter_response = get_chapters(manga_id, limit, volumes, chapters).await?;
+            let chapter_response = get_chapters(manga_id, limit, 0, volumes, chapters).await?;
 
             let chapters = chapter_response
                 .data
