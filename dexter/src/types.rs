@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use cli_table::{format::Justify, Table};
-use dexter_core::{ChapterData, ChaptersData, ImageLinkDescription, MangaData, SearchData};
+use dexter_core::api::{get_chapter, get_chapters, get_image_links, get_manga, search};
 
 fn display_otional_value<Value>(value: &Option<Value>) -> impl Display
 where
@@ -21,8 +21,8 @@ pub struct Manga {
     pub id: String,
 }
 
-impl From<SearchData> for Manga {
-    fn from(SearchData { attributes, id }: SearchData) -> Self {
+impl From<search::Data> for Manga {
+    fn from(search::Data { attributes, id }: search::Data) -> Self {
         Manga {
             id,
             title: attributes.title.en,
@@ -30,8 +30,8 @@ impl From<SearchData> for Manga {
     }
 }
 
-impl From<MangaData> for Manga {
-    fn from(MangaData { attributes, id }: MangaData) -> Self {
+impl From<get_manga::Data> for Manga {
+    fn from(get_manga::Data { attributes, id }: get_manga::Data) -> Self {
         Manga {
             id,
             title: attributes.title.en,
@@ -59,8 +59,8 @@ pub struct Chapter {
     language: Option<String>,
 }
 
-impl From<ChapterData> for Chapter {
-    fn from(ChapterData { attributes, id }: ChapterData) -> Self {
+impl From<get_chapter::Data> for Chapter {
+    fn from(get_chapter::Data { attributes, id }: get_chapter::Data) -> Self {
         Chapter {
             id,
             title: attributes.title,
@@ -71,8 +71,8 @@ impl From<ChapterData> for Chapter {
     }
 }
 
-impl From<ChaptersData> for Chapter {
-    fn from(ChaptersData { attributes, id }: ChaptersData) -> Self {
+impl From<get_chapters::Data> for Chapter {
+    fn from(get_chapters::Data { attributes, id }: get_chapters::Data) -> Self {
         Chapter {
             id,
             title: attributes.title,
@@ -109,8 +109,8 @@ pub struct ImageLink {
     url: String,
 }
 
-impl From<ImageLinkDescription> for ImageLink {
-    fn from(image_link_description: ImageLinkDescription) -> Self {
+impl From<get_image_links::Description> for ImageLink {
+    fn from(image_link_description: get_image_links::Description) -> Self {
         ImageLink {
             filename: image_link_description.filename,
             url: image_link_description.url,

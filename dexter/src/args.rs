@@ -24,7 +24,7 @@ pub struct InteractiveSearch {
     pub language: String,
     /// Max retries if image download fails
     #[clap(long, default_value_t = 3)]
-    pub download_max_retries: u32,
+    pub max_download_retries: u32,
 }
 
 #[derive(Parser, Debug)]
@@ -76,7 +76,7 @@ pub struct Download {
     pub outdir: Option<PathBuf>,
     /// Max retries if image download fails
     #[clap(long, default_value_t = 3)]
-    pub download_max_retries: u32,
+    pub max_download_retries: u32,
 }
 
 #[derive(Subcommand, Debug)]
