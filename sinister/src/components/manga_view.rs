@@ -1,15 +1,14 @@
 use std::collections::HashMap;
 
 use camino::Utf8PathBuf;
-use dexter_core::{
-    download_images, get_chapters, ChaptersData, ChaptersResponse, ImageDownloadEvent,
-    MangaResponse,
+use dexter_core::api::{
+    archive_download, get_chapters, get_manga, ArchiveDownload, GetChapters, Request,
 };
 use dioxus::prelude::*;
 use tokio::sync::mpsc;
 use tracing::{error, info};
 
-use crate::CHAPTERS_LENGTH;
+use crate::CHAPTERS_LIMIT;
 
 use super::Loader;
 
@@ -19,7 +18,7 @@ const CONCURRENT_IMAGE_DOWNLOAD: u32 = 10;
 #[inline_props]
 pub fn MangaView<'a>(
     cx: Scope,
-    manga: UseState<Option<(MangaResponse, ChaptersResponse)>>,
+    manga: UseState<Option<(get_manga::Response, get_chapters::Response)>>,
     download_progress: UseRef<HashMap<String, f32>>,
     on_close: EventHandler<'a, ()>,
 ) -> Element {
@@ -35,7 +34,7 @@ pub fn MangaView<'a>(
     let page = use_state(cx, || 1);
     let loading = use_state(cx, || false);
 
-    let download = move |chapter: &ChaptersData| {
+    let download = move |chapter: &get_chapters::Data| {
         if download_progress.read().contains_key(&chapter.id) {
             return;
         }
@@ -50,7 +49,7 @@ pub fn MangaView<'a>(
         info!("downloading {file_name}");
         download_progress
             .with_mut(|download_progress| download_progress.insert(file_name.clone(), 0.));
-        let (tx, mut rx) = mpsc::channel(1000);
+        let (tx, mut rx) = mpsc::unbounded_channel();
         {
             let file_name = file_name.clone();
             cx.spawn(async move {
@@ -63,12 +62,12 @@ pub fn MangaView<'a>(
                         clippy::cast_possible_truncation
                     )]
                     match event {
-                        ImageDownloadEvent::Init(s) => size = s as f32,
-                        ImageDownloadEvent::Done => {
+                        archive_download::Event::Init(s) => size = s as f32,
+                        archive_download::Event::Done => {
                             download_progress
                                 .with_mut(|download_progress| download_progress.remove(&file_name));
                         }
-                        ImageDownloadEvent::Download | ImageDownloadEvent::Zip => {
+                        archive_download::Event::Download | archive_download::Event::Zip => {
                             progress += 1.0;
                             download_progress.with_mut(|download_progress| {
                                 download_progress
@@ -81,7 +80,10 @@ pub fn MangaView<'a>(
         }
 
         tokio::spawn(async move {
-            let cbz = download_images(&chapter_id, CONCURRENT_IMAGE_DOWNLOAD, tx)
+            let cbz = ArchiveDownload::new(&chapter_id)
+                .set_max_download_retries(CONCURRENT_IMAGE_DOWNLOAD)
+                .set_sender(tx)
+                .request()
                 .await
                 .unwrap();
             let path = Utf8PathBuf::try_from(home::home_dir().unwrap())
@@ -111,14 +113,11 @@ pub fn MangaView<'a>(
         to_owned![loading, manga, manga_state];
         loading.set(true);
         async move {
-            let received_chapters = match get_chapters(
-                &manga.data.id,
-                CHAPTERS_LENGTH,
-                (*page - 1) * CHAPTERS_LENGTH,
-                Vec::<String>::new(),
-                Vec::<String>::new(),
-            )
-            .await
+            let received_chapters = match GetChapters::new(&manga.data.id)
+                .set_limit(CHAPTERS_LIMIT)
+                .set_offset((*page - 1) * CHAPTERS_LIMIT)
+                .request()
+                .await
             {
                 Ok(chapters) => chapters,
                 Err(err) => {

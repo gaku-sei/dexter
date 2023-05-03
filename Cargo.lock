@@ -1015,7 +1015,7 @@ dependencies = [
 name = "dexter-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
+ "async-trait",
  "bytes",
  "cbz",
  "futures",
@@ -1023,6 +1023,7 @@ dependencies = [
  "reqwest-middleware",
  "reqwest-retry",
  "serde",
+ "thiserror",
  "tokio",
  "tracing",
  "url",

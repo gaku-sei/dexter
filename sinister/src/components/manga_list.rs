@@ -1,11 +1,11 @@
-use dexter_core::SearchData;
+use dexter_core::api::search;
 use dioxus::prelude::*;
 
 #[must_use]
 #[inline_props]
 pub fn MangaList<'a>(
     cx: Scope,
-    mangas: UseRef<Option<Vec<SearchData>>>,
+    mangas: UseRef<Option<Vec<search::Data>>>,
     on_select: EventHandler<'a, String>,
 ) -> Element {
     let Some(mangas) = &*mangas.read() else {

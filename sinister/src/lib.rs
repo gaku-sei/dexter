@@ -4,7 +4,7 @@
 
 use std::{collections::HashMap, time::Duration};
 
-use dexter_core::{get_chapters, get_manga, search};
+use dexter_core::{GetChapters, GetManga, Request, Search};
 use dioxus::prelude::*;
 use dioxus_desktop::{Config, WindowBuilder};
 use tokio::time::sleep;
@@ -15,7 +15,7 @@ use crate::components::{Loader, MangaList, MangaView, Progress};
 pub mod components;
 
 static MANGAS_LENGTH: u32 = 50;
-pub(crate) static CHAPTERS_LENGTH: u32 = 100;
+pub(crate) static CHAPTERS_LIMIT: u32 = 100;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -79,7 +79,11 @@ fn App(cx: Scope<AppProps>) -> Element {
             mangas.set(None);
             manga_search_loading.set(true);
             sleep(Duration::from_secs(1)).await;
-            let received_mangas = match search(mangas_search, MANGAS_LENGTH).await {
+            let received_mangas = match Search::new(&*mangas_search)
+                .with_limit(MANGAS_LENGTH)
+                .request()
+                .await
+            {
                 Ok(mangas) => mangas,
                 Err(err) => {
                     error!("manga search error: {err}");
@@ -99,21 +103,17 @@ fn App(cx: Scope<AppProps>) -> Element {
             };
             manga_loading.set(true);
             sleep(Duration::from_secs(1)).await;
-            let received_manga = match get_manga(manga_id).await {
+            let received_manga = match GetManga::new(manga_id).request().await {
                 Ok(manga) => manga,
                 Err(err) => {
                     error!("manga get error: {err}");
                     return;
                 }
             };
-            let received_chapters = match get_chapters(
-                manga_id,
-                CHAPTERS_LENGTH,
-                0,
-                Vec::<String>::new(),
-                Vec::<String>::new(),
-            )
-            .await
+            let received_chapters = match GetChapters::new(manga_id)
+                .set_limit(CHAPTERS_LIMIT)
+                .request()
+                .await
             {
                 Ok(chapters) => chapters,
                 Err(err) => {

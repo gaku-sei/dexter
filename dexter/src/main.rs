@@ -14,8 +14,10 @@ use cbz_reader::run;
 use clap::Parser;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
-    download_images, get_chapter, get_chapters, get_image_links, get_manga, search,
-    ImageDownloadEvent,
+    api::archive_download, ArchiveDownload as DexterArchiveDownload,
+    GetChapter as DexterGetChapter, GetChapters as DexterGetChapters,
+    GetImageLinks as DexterGetImageLinks, GetManga as DexterGetManga, Request,
+    Search as DexterSearch,
 };
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
@@ -33,7 +35,10 @@ mod types;
 async fn find_manga() -> Result<Manga> {
     let manga_title: String = Input::new().with_prompt("Manga title").interact_text()?;
 
-    let search_response = search(manga_title, 10).await?;
+    let search_response = DexterSearch::new(manga_title)
+        .with_limit(10)
+        .request()
+        .await?;
 
     let mangas = search_response
         .data
@@ -60,14 +65,11 @@ async fn find_manga() -> Result<Manga> {
 async fn find_chapter(manga: &Manga) -> Result<Chapter> {
     let chapter_number: String = Input::new().with_prompt("Chapter number").interact_text()?;
 
-    let chapter_response = get_chapters(
-        &manga.id,
-        10,
-        0,
-        Vec::<&str>::new(),
-        vec![chapter_number.to_string()],
-    )
-    .await?;
+    let chapter_response = DexterGetChapters::new(&manga.id)
+        .set_limit(10)
+        .push_chapter(chapter_number)
+        .request()
+        .await?;
 
     let chapters = chapter_response
         .data
@@ -93,17 +95,17 @@ async fn find_chapter(manga: &Manga) -> Result<Chapter> {
 async fn download(
     chapter_id: &str,
     filepath: &Path,
-    download_max_retries: u32,
+    max_download_retries: u32,
     open: bool,
 ) -> Result<()> {
-    let (tx, mut rx) = mpsc::channel(32);
+    let (tx, mut rx) = mpsc::unbounded_channel();
 
     let progress_handle = tokio::spawn(async move {
         let mut bar = ProgressBar::new(0);
 
         while let Some(event) = rx.recv().await {
             match event {
-                ImageDownloadEvent::Init(len) => {
+                archive_download::Event::Init(len) => {
                     bar = ProgressBar::new((len * 2) as u64);
 
                     bar.set_style(
@@ -114,10 +116,10 @@ async fn download(
                             })?,
                     );
                 }
-                ImageDownloadEvent::Download | ImageDownloadEvent::Zip => {
+                archive_download::Event::Download | archive_download::Event::Zip => {
                     bar.inc(1);
                 }
-                ImageDownloadEvent::Done => {
+                archive_download::Event::Done => {
                     bar.finish();
                 }
             }
@@ -126,7 +128,11 @@ async fn download(
         Ok::<(), Error>(())
     });
 
-    let cbz_writer_finished = download_images(chapter_id, download_max_retries, tx).await?;
+    let cbz_writer_finished = DexterArchiveDownload::new(chapter_id)
+        .set_max_download_retries(max_download_retries)
+        .set_sender(tx)
+        .request()
+        .await?;
 
     let file = OpenOptions::new()
         .read(true)
@@ -148,6 +154,7 @@ async fn download(
 }
 
 #[tokio::main]
+#[allow(clippy::too_many_lines)]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
@@ -161,22 +168,20 @@ async fn main() -> Result<()> {
             accepts_default_filename,
             outdir,
             language,
-            download_max_retries,
+            max_download_retries,
         }) => {
             let manga = match manga_id {
-                Some(manga_id) => get_manga(manga_id).await?.data.into(),
+                Some(manga_id) => DexterGetManga::new(manga_id).request().await?.data.into(),
                 None => find_manga().await?,
             };
 
             let chapter = match chapter_number {
                 Some(chapter_number) => {
-                    let mut chapter_response = get_chapter(
-                        &manga.id,
-                        &language,
-                        &chapter_number,
-                        volume_number.as_ref(),
-                    )
-                    .await?;
+                    let mut chapter_response = DexterGetChapter::new(&manga.id, &chapter_number)
+                        .with_language(&language)
+                        .set_volume_number(volume_number)
+                        .request()
+                        .await?;
 
                     let Some(chapter) = chapter_response
                         .data
@@ -208,13 +213,13 @@ async fn main() -> Result<()> {
 
             let filepath = outdir.join(filename);
 
-            download(&chapter.id, &filepath, download_max_retries, false).await?;
+            download(&chapter.id, &filepath, max_download_retries, false).await?;
 
             println!("CBZ file created");
         }
 
         Subcommands::Search(Search { limit, title }) => {
-            let search_response = search(title, limit).await?;
+            let search_response = DexterSearch::new(title).with_limit(limit).request().await?;
 
             let mangas = search_response
                 .data
@@ -230,7 +235,12 @@ async fn main() -> Result<()> {
             chapters,
             volumes,
         }) => {
-            let chapter_response = get_chapters(manga_id, limit, 0, volumes, chapters).await?;
+            let chapter_response = DexterGetChapters::new(manga_id)
+                .set_limit(limit)
+                .with_volumes(volumes)
+                .with_chapters(chapters)
+                .request()
+                .await?;
 
             let chapters = chapter_response
                 .data
@@ -241,7 +251,7 @@ async fn main() -> Result<()> {
             print_stdout(chapters.with_title())?;
         }
         Subcommands::ImageLinks(ImageLinks { chapter_id }) => {
-            let image_links = get_image_links(&chapter_id).await?;
+            let image_links = DexterGetImageLinks::new(chapter_id).request().await?;
 
             let image_links = image_links
                 .into_iter()
@@ -255,7 +265,7 @@ async fn main() -> Result<()> {
             filename,
             open,
             outdir,
-            download_max_retries,
+            max_download_retries,
         }) => {
             let outdir = outdir.unwrap_or(current_dir()?);
 
@@ -265,7 +275,7 @@ async fn main() -> Result<()> {
 
             let filepath = outdir.join(filename);
 
-            download(&chapter_id, &filepath, download_max_retries, open).await?;
+            download(&chapter_id, &filepath, max_download_retries, open).await?;
 
             println!("CBZ file created");
         }
