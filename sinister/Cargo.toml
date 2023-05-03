@@ -14,6 +14,7 @@ dexter-core.workspace = true
 dioxus.workspace = true
 dioxus-desktop.workspace = true
 home.workspace = true
+isolang = { workspace = true, features = ["list_languages"] }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

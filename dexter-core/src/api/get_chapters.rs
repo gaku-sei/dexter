@@ -40,6 +40,7 @@ pub struct GetChapters {
     offset: u32,
     chapters: Option<Vec<String>>,
     volumes: Option<Vec<String>>,
+    languages: Option<Vec<String>>,
 }
 
 impl GetChapters {
@@ -50,6 +51,7 @@ impl GetChapters {
             offset: 0,
             chapters: None,
             volumes: None,
+            languages: None,
         }
     }
 
@@ -108,6 +110,31 @@ impl GetChapters {
         };
         self
     }
+
+    #[must_use]
+    pub fn set_languages(mut self, languages: Option<Vec<String>>) -> Self {
+        self.languages = languages;
+        self
+    }
+
+    #[must_use]
+    pub fn with_languages(
+        mut self,
+        languages: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        self.languages = Some(languages.into_iter().map(Into::into).collect());
+        self
+    }
+
+    #[must_use]
+    pub fn push_language(mut self, language: impl Into<String>) -> Self {
+        let language = language.into();
+        match &mut self.languages {
+            Some(languages) => languages.push(language),
+            None => self.languages = Some(vec![language]),
+        };
+        self
+    }
 }
 
 #[async_trait]
@@ -128,6 +155,12 @@ impl Request for GetChapters {
         if let Some(chapters) = &self.chapters {
             for chapter in chapters {
                 url.query_pairs_mut().append_pair("chapter[]", chapter);
+            }
+        }
+        if let Some(languages) = &self.languages {
+            for language in languages {
+                url.query_pairs_mut()
+                    .append_pair("translatedLanguage[]", language);
             }
         }
         if let Some(volumes) = &self.volumes {
