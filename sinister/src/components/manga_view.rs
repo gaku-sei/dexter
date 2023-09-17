@@ -33,6 +33,9 @@ pub fn MangaView<'a>(
     };
     let page = use_state(cx, || 1);
     let loading = use_state(cx, || false);
+    let language = use_state(cx, || {
+        isolang::Language::Eng.to_639_1().unwrap().to_string()
+    });
 
     let download = move |chapter: &get_chapters::Data| {
         if download_progress.read().contains_key(&chapter.id) {
@@ -109,12 +112,20 @@ pub fn MangaView<'a>(
         }
     };
 
-    use_future!(cx, |page| {
+    let change_language = move |evt: FormEvent| {
+        if !**loading {
+            page.set(1);
+            language.set(evt.value.clone());
+        }
+    };
+
+    use_future!(cx, |page, language| {
         to_owned![loading, manga, manga_state];
         loading.set(true);
         async move {
             let received_chapters = match GetChapters::new(&manga.data.id)
                 .set_limit(CHAPTERS_LIMIT)
+                .push_language(&*language)
                 .set_offset((*page - 1) * CHAPTERS_LIMIT)
                 .request()
                 .await
@@ -135,24 +146,42 @@ pub fn MangaView<'a>(
     });
 
     cx.render(rsx! {
-        div {
-            class: "absolute inset-0 bg-slate-800",
-            div {
-                class: "flex flex w-full flex-shrink-0 justify-between items-center h-16 px-2 border-b border-slate-900 text-xl",
+        div { class: "absolute inset-0 bg-slate-800",
+            div { class: "flex flex w-full flex-shrink-0 justify-between items-center h-16 px-2 border-b border-slate-900 text-xl",
                 div { "{manga.data.attributes.title.en}" }
-                div {
-                    i {
-                        class: "bi bi-x-lg cursor-pointer",
-                        onclick: close,
+                div { class: "flex flex-row items-center gap-2",
+                    div {
+                        select {
+                            class: "h-6 px-2 text-slate-900 outline-none text-sm",
+                            name: "language",
+                            oninput: change_language,
+                            value: "{language}",
+                            option { value: "{isolang::Language::Eng.to_639_1().unwrap()}",
+                                "English"
+                            }
+                            option { value: "{isolang::Language::Fra.to_639_1().unwrap()}",
+                                "French"
+                            }
+                            for language in isolang::languages() {
+                                if !matches!(language, isolang::Language::Fra | isolang::Language::Eng) {
+                                    if let Some(code) = language.to_639_1() {
+                                        let name = language.to_name();
+                                        cx.render(rsx! {
+                                            option { value: "{code}", "{name}" }
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                }
+                            }
+                        }
                     }
+                    div { i { class: "bi bi-x-lg cursor-pointer", onclick: close } }
                 }
             }
-            div {
-                class: "h-[calc(100%-8rem)] overflow-y-auto",
+            div { class: "h-[calc(100%-8rem)] overflow-y-auto",
                 for chapter in chapters.data.iter() {
-                    div {
-                        key: "{chapter.id}",
-                        class: "flex flex-row gap-1 px-2",
+                    div { key: "{chapter.id}", class: "flex flex-row gap-1 px-2",
                         div {
                             class: "flex items-center",
                             title: "Download",
@@ -169,8 +198,7 @@ pub fn MangaView<'a>(
                     }
                 }
             }
-            div {
-                class: "flex items-center justify-center h-16 border-t border-slate-900 gap-2",
+            div { class: "flex items-center justify-center h-16 border-t border-slate-900 gap-2",
                 if chapters.offset > 0 {
                     rsx! {
                         div {

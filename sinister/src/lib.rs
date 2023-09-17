@@ -52,7 +52,7 @@ fn App(cx: Scope<AppProps>) -> Element {
 
     let onsubmit = move |evt: FormEvent| {
         if !**manga_search_loading {
-            mangas_search.set(evt.values["title"].clone());
+            mangas_search.set(evt.values["title"][0].clone());
         }
     };
 
@@ -112,6 +112,7 @@ fn App(cx: Scope<AppProps>) -> Element {
             };
             let received_chapters = match GetChapters::new(manga_id)
                 .set_limit(CHAPTERS_LIMIT)
+                .push_language("en")
                 .request()
                 .await
             {
@@ -127,8 +128,7 @@ fn App(cx: Scope<AppProps>) -> Element {
     });
 
     cx.render(rsx! {
-        div {
-            class: "w-screen h-screen flex flex-col text-slate-400",
+        div { class: "w-screen h-screen flex flex-col text-slate-400",
             if !download_progress.read().is_empty() {
                 rsx! {
                     div {
@@ -143,8 +143,7 @@ fn App(cx: Scope<AppProps>) -> Element {
                     }
                 }
             }
-            div {
-                class: "flex flex-shrink-0 w-full items-center justify-center transition-[height] {form_classes}",
+            div { class: "flex flex-shrink-0 w-full items-center justify-center transition-[height] {form_classes}",
                 form {
                     onsubmit: onsubmit,
                     prevent_default: "onsubmit",
@@ -155,7 +154,7 @@ fn App(cx: Scope<AppProps>) -> Element {
                         autofocus: "on",
                         autocapitalize: "off",
                         autocomplete: "off",
-                        name: "title",
+                        name: "title"
                     }
                     button {
                         class: "h-full px-2 bg-slate-900 hover:bg-slate-600",
