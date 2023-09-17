@@ -183,11 +183,9 @@ async fn main() -> Result<()> {
                         .request()
                         .await?;
 
-                    let Some(chapter) = chapter_response
-                        .data
-                        .pop() else {
-                            panic!("chapter number {chapter_number} not found for manga {manga} and language {language}");
-                        };
+                    let Some(chapter) = chapter_response.data.pop() else {
+                        panic!("chapter number {chapter_number} not found for manga {manga} and language {language}");
+                    };
 
                     chapter.into()
                 }
