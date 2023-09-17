@@ -254,8 +254,8 @@ async fn get_images_from_glob(glob_expr: impl AsRef<str>) -> Result<Vec<Result<(
         tokio::spawn(async move {
             let path = path?;
             let Some(path) = Utf8Path::from_path(&path) else {
-                        bail!("{path:?} is not a valid utf-8 path");
-                    };
+                bail!("{path:?} is not a valid utf-8 path");
+            };
             let img = Image::open(path)?;
 
             Ok((index, img))

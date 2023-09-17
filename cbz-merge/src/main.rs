@@ -32,7 +32,10 @@ fn main() -> Result<()> {
         current_cbz.try_for_each(|file| {
             let file = file?;
 
-            let Some(extension) = Utf8Path::new(file.name()).extension().map(ToString::to_string) else {
+            let Some(extension) = Utf8Path::new(file.name())
+                .extension()
+                .map(ToString::to_string)
+            else {
                 bail!("Extension couldn't be read from {}", file.name());
             };
 

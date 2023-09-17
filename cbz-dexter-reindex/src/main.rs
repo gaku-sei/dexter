@@ -73,8 +73,8 @@ pub fn reformat_index(cbz_file: &CbzFile, expected_length: usize) -> Result<Stri
     let mut name_chars = cbz_file.name().chars();
 
     let Some(first_char) = name_chars.next() else {
-            bail!("filename is empty");
-        };
+        bail!("filename is empty");
+    };
 
     let mut index = if first_char.is_numeric() {
         first_char.to_string()
