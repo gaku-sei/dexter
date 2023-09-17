@@ -4,6 +4,7 @@ pub use get_chapter::GetChapter;
 pub use get_chapters::GetChapters;
 pub use get_image_links::GetImageLinks;
 pub use get_manga::GetManga;
+use reqwest::header::USER_AGENT;
 use reqwest::IntoUrl;
 use reqwest::Url;
 pub use search::Search;
@@ -19,6 +20,8 @@ pub mod get_image_links;
 pub mod get_manga;
 pub mod search;
 
+static FAKE_USER_AGENT: &str = "user agent";
+
 /// Returns the base mangadex url
 pub(super) fn base_url() -> Url {
     "https://api.mangadex.org/".parse().unwrap()
@@ -29,10 +32,17 @@ pub(super) async fn get_json<T: for<'de> Deserialize<'de>>(
     url: impl IntoUrl,
     context: &str,
 ) -> Result<T> {
-    reqwest::get(url).await?.json().await.map_err(|err| {
-        error!("error decoding {context}: {err}");
-        err.into()
-    })
+    reqwest::Client::new()
+        .get(url)
+        .header(USER_AGENT, FAKE_USER_AGENT)
+        .send()
+        .await?
+        .json()
+        .await
+        .map_err(|err| {
+            error!("error decoding {context}: {err}");
+            err.into()
+        })
 }
 
 #[async_trait]
