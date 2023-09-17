@@ -30,6 +30,9 @@ pub enum Error {
 
     #[error("Cbz file insertion: no bytes set")]
     CbzInsertionNoBytes,
+
+    #[error("Image error: {0}")]
+    Image(#[from] image::ImageError),
 }
 
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T, E = Error> = result::Result<T, E>;

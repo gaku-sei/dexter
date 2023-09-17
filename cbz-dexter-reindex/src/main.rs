@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
 /// Indices are often ill formatted or invalid (x1, R2, etc...).
 /// This function will clean up the index and add some padding (3).
 ///
-/// # Errors
+/// ## Errors
 ///
 /// Fails if the filename is empty or the index is invalid (longer than the `expected_length` or not a valid unsigned integer).
 pub fn reformat_index(cbz_file: &CbzFile, expected_length: usize) -> Result<String> {

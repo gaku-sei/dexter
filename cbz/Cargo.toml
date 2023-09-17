@@ -6,8 +6,15 @@ rust-version.workspace = true
 
 [dependencies]
 bytes.workspace = true
+clap = { workspace = true, optional = true }
 camino.workspace = true
 glob.workspace = true
+image.workspace = true
 sanitize-filename.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 zip.workspace = true
+
+[features]
+default = []
+clap = ["dep:clap"]
