@@ -118,3 +118,11 @@ Converts from \* to cbz (only pdf, mobi, and DRM-free azw3 supported for the mom
 ```bash
 cbz-converter "archive.azw3" --from azw3 --outdir out
 ```
+
+## Cbz Reader
+
+Read any cbz file with this simple gui:
+
+```bash
+cbz-reader "my_archive.cbz"
+```
