@@ -7,17 +7,10 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 camino.workspace = true
-cbz.workspace = true
+cbz = { workspace = true, features = ["clap"] }
 clap.workspace = true
 tracing-subscriber.workspace = true
-futures.workspace = true
 glob.workspace = true
-image.workspace = true
-tracing.workspace = true
-pdf = { workspace = true, optional = true }
 sanitize-filename.workspace = true
-tokio.workspace = true
-
-[features]
-default = ["pdf"]
-pdf = ["dep:pdf"]
+thiserror.workspace = true
+tracing.workspace = true

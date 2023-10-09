@@ -1,0 +1,25 @@
+[package]
+name = "cbz-converter"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+camino.workspace = true
+cbz.workspace = true
+cbz-pack.workspace = true
+clap.workspace = true
+html5ever = { workspace = true, optional = true }
+image.workspace = true
+markup5ever_rcdom = { workspace = true, optional = true }
+mobi.workspace = true
+pdf.workspace = true
+sanitize-filename.workspace = true
+tl.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[features]
+default = []
+html5ever = ["dep:html5ever", "markup5ever_rcdom"]

@@ -17,7 +17,8 @@ use zip::{read::ZipFile, write::FileOptions, ZipArchive, ZipWriter};
 
 pub use crate::errors::{Error, Result};
 
-mod errors;
+pub mod errors;
+pub mod image;
 
 /// We artificially limit the amount of accepted files to 65535 files per Cbz
 /// First as it'd be rather impractical for the user to read such enormous Cbz

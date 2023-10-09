@@ -83,12 +83,6 @@ dexter download -c 07bf2a09-f30d-410f-aba1-025e2d27a88f -o
 
 That'll automatically download the whole chapter as a CBZ file and open it in the simple `cbz-reader` which source is also available in this repository.
 
-## Cbz Reader
-
-```bash
-cbz-reader archive.cbz
-```
-
 ## Cbz Merge
 
 This will look for all the Cbz archives file foundable in `path` and which file name contains `something` and merge into `output/merged_archive.cbz`:
@@ -97,7 +91,7 @@ This will look for all the Cbz archives file foundable in `path` and which file 
 cbz-merge --archives-glob "path/**/*something*" --outdir "output" --name "merged_archive"
 ```
 
-## Cbz Reader
+## Cbz Pack
 
 Takes all the `png` files under `source` and pack them into the `archive.cbz` file:
 
@@ -112,6 +106,15 @@ cbz-pack source.pdf --pdf --name archive
 ```
 
 Options inclue:
+
 - `--autosplit`: split in 2 landscape images
 - `--contrast`: change contrast
 - `--brightness`: change brightness
+
+## Cbz Converter
+
+Converts from \* to cbz (only pdf, mobi, and DRM-free azw3 supported for the moment):
+
+```bash
+cbz-converter "archive.azw3" --from azw3 --outdir out
+```
