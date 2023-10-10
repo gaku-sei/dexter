@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 #![allow(non_snake_case)]
+#![allow(clippy::ignored_unit_patterns)]
 
 use std::{collections::HashMap, time::Duration};
 
@@ -185,7 +186,7 @@ fn App(cx: Scope<AppProps>) -> Element {
                     MangaView {
                         manga: selected_manga.clone(),
                         download_progress: download_progress.clone(),
-                        on_close: move |_| {
+                        on_close: move |()| {
                             selected_manga_id.set(None);
                             selected_manga.set(None);
                         },
