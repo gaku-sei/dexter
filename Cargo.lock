@@ -427,20 +427,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cbz-dexter-reindex"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "camino",
- "cbz",
- "clap",
- "dexter-core",
- "tokio",
- "tracing-subscriber",
- "zip",
-]
-
-[[package]]
 name = "cbz-merge"
 version = "0.1.0"
 dependencies = [

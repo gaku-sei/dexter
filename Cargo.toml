@@ -5,7 +5,6 @@ members = [
   "dexter-core",
   "cbz",
   "cbz-converter",
-  "cbz-dexter-reindex",
   "cbz-merge",
   "cbz-pack",
   "cbz-reader",
