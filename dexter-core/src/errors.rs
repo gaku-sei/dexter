@@ -7,7 +7,7 @@ pub enum Error {
     Join(#[from] tokio::task::JoinError),
 
     #[error("cbz error: {0}")]
-    Cbz(#[from] cbz::Error),
+    Cbz(#[from] eco_cbz::Error),
 
     #[error("reqwest error: {0}")]
     Reqwest(#[from] reqwest::Error),

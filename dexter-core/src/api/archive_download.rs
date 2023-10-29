@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use async_trait::async_trait;
-use cbz::{CbzWrite, CbzWriter, CbzWriterFinished, CbzWriterInsertionBuilder};
+use eco_cbz::{CbzWrite, CbzWriter, CbzWriterFinished, CbzWriterInsertionBuilder};
 use futures::{stream, StreamExt, TryStreamExt};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
