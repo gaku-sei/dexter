@@ -7,13 +7,13 @@ rust-version.workspace = true
 [dependencies]
 async-trait.workspace = true
 bytes.workspace = true
-cbz.workspace = true
+eco-cbz.workspace = true
 futures.workspace = true
-tracing.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 reqwest-middleware.workspace = true
 reqwest-retry.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 url.workspace = true

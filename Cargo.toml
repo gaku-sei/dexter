@@ -1,15 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-  "dexter",
-  "dexter-core",
-  "cbz",
-  "cbz-converter",
-  "cbz-merge",
-  "cbz-pack",
-  "cbz-reader",
-  "sinister",
-]
+members = ["dexter", "dexter-core", "sinister"]
 
 [workspace.package]
 rust-version = "1.73.0"
@@ -22,15 +13,15 @@ async-trait = "0.1.68"
 base64 = "0.21.2"
 bytes = "1.4.0"
 camino = "1.1.4"
-cbz = { path = "./cbz" }
-cbz-pack = { path = "./cbz-pack" }
-cbz-reader = { path = "./cbz-reader" }
 clap = { version = "4.3.5", features = ["derive"] }
 cli-table = "0.4.7"
 dexter-core = { path = "./dexter-core" }
 dialoguer = "0.10.4"
 dioxus = "0.4.0"
 dioxus-desktop = "0.4.0"
+eco-cbz = { git = "https://github.com/gaku-sei/eco.git" }
+eco-pack = { git = "https://github.com/gaku-sei/eco.git" }
+eco-viewer = { git = "https://github.com/gaku-sei/eco.git" }
 futures = "0.3.28"
 glob = "0.3.1"
 home = "0.5.5"

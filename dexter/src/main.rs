@@ -9,8 +9,6 @@ use std::{
 
 use anyhow::{anyhow, Error, Result};
 use async_recursion::async_recursion;
-use cbz::CbzReader;
-use cbz_reader::run;
 use clap::Parser;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
@@ -21,6 +19,8 @@ use dexter_core::{
 };
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
+use eco_cbz::CbzReader;
+use eco_viewer::run;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::sync::mpsc;
 use types::{Chapter, ImageLink};

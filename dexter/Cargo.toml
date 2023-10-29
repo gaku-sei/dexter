@@ -7,14 +7,14 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-recursion.workspace = true
-cbz.workspace = true
-cbz-reader.workspace = true
 clap = { workspace = true, features = ["derive"] }
 cli-table.workspace = true
 dexter-core.workspace = true
 dialoguer.workspace = true
-tracing-subscriber.workspace = true
+eco-cbz.workspace = true
+eco-viewer.workspace = true
 indicatif.workspace = true
-tracing.workspace = true
 sanitize-filename.workspace = true
 tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
