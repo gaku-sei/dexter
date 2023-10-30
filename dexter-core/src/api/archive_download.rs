@@ -1,7 +1,8 @@
-use std::io::Cursor;
+use std::{io::Cursor, marker::PhantomData};
 
 use async_trait::async_trait;
-use eco_cbz::{CbzWrite, CbzWriter, CbzWriterFinished, CbzWriterInsertionBuilder};
+use camino::Utf8Path;
+use eco_cbz::CbzWriter;
 use futures::{stream, StreamExt, TryStreamExt};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
@@ -23,14 +24,15 @@ pub enum Event {
 
 /// Downloads all images for a given chapter id, and create an archive containing all the downloaded images.
 #[derive(Debug, Clone)]
-pub struct ArchiveDownload {
+pub struct ArchiveDownload<'a> {
     chapter_id: String,
     max_parallel_download: usize,
     max_download_retries: u32,
     sender: mpsc::UnboundedSender<Event>,
+    _lifetime: PhantomData<&'a ()>,
 }
 
-impl ArchiveDownload {
+impl<'a> ArchiveDownload<'a> {
     pub fn new(chapter_id: impl Into<String>) -> Self {
         let (tx, _rx) = mpsc::unbounded_channel();
 
@@ -39,6 +41,7 @@ impl ArchiveDownload {
             max_parallel_download: DEFAULT_MAX_PARALLEL_DOWNLOAD,
             max_download_retries: DEFAULT_MAX_DOWNLOAD_RETRIES,
             sender: tx,
+            _lifetime: PhantomData,
         }
     }
 
@@ -62,8 +65,8 @@ impl ArchiveDownload {
 }
 
 #[async_trait]
-impl Request for ArchiveDownload {
-    type Response = CbzWriterFinished<Cursor<Vec<u8>>>;
+impl<'a> Request for ArchiveDownload<'a> {
+    type Response = CbzWriter<'a, Cursor<Vec<u8>>>;
 
     async fn request(self) -> Result<Self::Response> {
         let retry_policy =
@@ -110,10 +113,11 @@ impl Request for ArchiveDownload {
                 info!("Packing {filename}");
 
                 let mut cbz_writer_guard = cbz_writer.lock().await;
-                let insertion = CbzWriterInsertionBuilder::from_filename(&filename)
-                    .set_bytes(bytes)
-                    .build()?;
-                cbz_writer_guard.insert(insertion).map_err(|err| {
+                let extension = Utf8Path::new(&filename)
+                    .extension()
+                    .map(ToString::to_string)
+                    .unwrap_or_default();
+                cbz_writer_guard.insert(&bytes, &extension).map_err(|err| {
                     error!("failed to write content to archive file {filename}");
                     Error::from(err)
                 })?;
@@ -128,10 +132,8 @@ impl Request for ArchiveDownload {
             })
             .await?;
 
-        let cbz_writer_finished = cbz_writer.into_inner().finish()?;
-
         self.sender.send(Event::Done)?;
 
-        Ok(cbz_writer_finished)
+        Ok(cbz_writer.into_inner())
     }
 }
