@@ -128,7 +128,7 @@ async fn download(
         Ok::<(), Error>(())
     });
 
-    let cbz_writer_finished = DexterArchiveDownload::new(chapter_id)
+    let cbz_writer = DexterArchiveDownload::new(chapter_id)
         .set_max_download_retries(max_download_retries)
         .set_sender(tx)
         .request()
@@ -140,12 +140,10 @@ async fn download(
         .create(true)
         .open(filepath)?;
 
-    cbz_writer_finished.write_to(&file)?;
+    cbz_writer.write_to(&file)?;
 
     if open {
-        let mut cbz = CbzReader::from_reader(file)?;
-
-        run(&mut cbz)?;
+        run(CbzReader::try_from_reader(file)?)?;
     }
 
     progress_handle.await??;
@@ -193,7 +191,6 @@ async fn main() -> Result<()> {
             };
 
             let default_filename = sanitize_filename::sanitize(format!("{manga} - {chapter}.cbz"));
-
             let filename = if accepts_default_filename {
                 default_filename
             } else {

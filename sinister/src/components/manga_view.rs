@@ -94,6 +94,7 @@ pub fn MangaView<'a>(
                 .join("Downloads")
                 .join(&file_name);
             info!("{file_name} downloaded");
+            info!("{} downloaded", path.to_string());
             if let Err(err) = cbz.write_to_path(path) {
                 error!("cbz creation error: {err}");
             }

@@ -824,7 +824,7 @@ name = "dexter-core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bytes",
+ "camino",
  "eco-cbz",
  "futures",
  "reqwest",
@@ -1035,11 +1035,11 @@ checksum = "56ce8c6da7551ec6c462cbaf3bfbc75131ebbfa1c944aeaa9dab51ca1c5f0c3b"
 [[package]]
 name = "eco-cbz"
 version = "0.1.0"
-source = "git+https://github.com/gaku-sei/eco.git#9a1851865bf3802fd1d78ad021dd374d7d274f63"
+source = "git+https://github.com/gaku-sei/eco.git#51921f9dfae37fcec47aa92efa41261e0f554b2c"
 dependencies = [
- "bytes",
  "camino",
  "image",
+ "sanitize-filename",
  "thiserror",
  "tracing",
  "zip",
@@ -1048,7 +1048,7 @@ dependencies = [
 [[package]]
 name = "eco-viewer"
 version = "0.1.0"
-source = "git+https://github.com/gaku-sei/eco.git#9a1851865bf3802fd1d78ad021dd374d7d274f63"
+source = "git+https://github.com/gaku-sei/eco.git#51921f9dfae37fcec47aa92efa41261e0f554b2c"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
