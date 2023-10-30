@@ -1,4 +1,4 @@
-use std::{io::Cursor, marker::PhantomData};
+use std::io::Cursor;
 
 use async_trait::async_trait;
 use camino::Utf8Path;
@@ -24,15 +24,14 @@ pub enum Event {
 
 /// Downloads all images for a given chapter id, and create an archive containing all the downloaded images.
 #[derive(Debug, Clone)]
-pub struct ArchiveDownload<'a> {
+pub struct ArchiveDownload {
     chapter_id: String,
     max_parallel_download: usize,
     max_download_retries: u32,
     sender: mpsc::UnboundedSender<Event>,
-    _lifetime: PhantomData<&'a ()>,
 }
 
-impl<'a> ArchiveDownload<'a> {
+impl ArchiveDownload {
     pub fn new(chapter_id: impl Into<String>) -> Self {
         let (tx, _rx) = mpsc::unbounded_channel();
 
@@ -41,7 +40,6 @@ impl<'a> ArchiveDownload<'a> {
             max_parallel_download: DEFAULT_MAX_PARALLEL_DOWNLOAD,
             max_download_retries: DEFAULT_MAX_DOWNLOAD_RETRIES,
             sender: tx,
-            _lifetime: PhantomData,
         }
     }
 
@@ -65,8 +63,8 @@ impl<'a> ArchiveDownload<'a> {
 }
 
 #[async_trait]
-impl<'a> Request for ArchiveDownload<'a> {
-    type Response = CbzWriter<'a, Cursor<Vec<u8>>>;
+impl Request for ArchiveDownload {
+    type Response = CbzWriter<Cursor<Vec<u8>>>;
 
     async fn request(self) -> Result<Self::Response> {
         let retry_policy =
