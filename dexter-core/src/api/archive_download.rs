@@ -115,10 +115,12 @@ impl Request for ArchiveDownload {
                     .extension()
                     .map(ToString::to_string)
                     .unwrap_or_default();
-                cbz_writer_guard.insert(&bytes, &extension).map_err(|err| {
-                    error!("failed to write content to archive file {filename}");
-                    Error::from(err)
-                })?;
+                cbz_writer_guard
+                    .insert_bytes_with_extension(&bytes, &extension)
+                    .map_err(|err| {
+                        error!("failed to write content to archive file {filename}");
+                        Error::from(err)
+                    })?;
                 drop(cbz_writer_guard);
 
                 self.sender.send(Event::Zip).map_err(|err| {

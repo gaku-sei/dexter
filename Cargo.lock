@@ -418,7 +418,10 @@ checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
+ "serde",
+ "wasm-bindgen",
  "windows-targets 0.48.5",
 ]
 
@@ -806,6 +809,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-recursion",
+ "camino",
  "clap",
  "cli-table",
  "dexter-core",
@@ -1035,11 +1039,15 @@ checksum = "56ce8c6da7551ec6c462cbaf3bfbc75131ebbfa1c944aeaa9dab51ca1c5f0c3b"
 [[package]]
 name = "eco-cbz"
 version = "0.1.0"
-source = "git+https://github.com/gaku-sei/eco.git#a503c900ae4943515dc260e93a2e989099c9c821"
+source = "git+https://github.com/gaku-sei/eco.git#f60b7ff8a054e651f865fd2ae0c9dd45f6fd802a"
 dependencies = [
  "camino",
+ "chrono",
  "image",
  "sanitize-filename",
+ "serde",
+ "serde_json",
+ "serde_repr",
  "thiserror",
  "tracing",
  "zip",
@@ -1048,7 +1056,7 @@ dependencies = [
 [[package]]
 name = "eco-viewer"
 version = "0.1.0"
-source = "git+https://github.com/gaku-sei/eco.git#a503c900ae4943515dc260e93a2e989099c9c821"
+source = "git+https://github.com/gaku-sei/eco.git#f60b7ff8a054e651f865fd2ae0c9dd45f6fd802a"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -1056,6 +1064,7 @@ dependencies = [
  "clap",
  "dioxus",
  "dioxus-desktop",
+ "dunce",
  "eco-cbz",
  "thiserror",
  "tracing",
