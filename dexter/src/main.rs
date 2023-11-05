@@ -4,11 +4,11 @@
 use std::{
     env::current_dir,
     fs::{create_dir_all, OpenOptions},
-    path::Path,
 };
 
 use anyhow::{anyhow, Error, Result};
 use async_recursion::async_recursion;
+use camino::Utf8Path;
 use clap::Parser;
 use cli_table::{print_stdout, WithTitle};
 use dexter_core::{
@@ -19,7 +19,6 @@ use dexter_core::{
 };
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
-use eco_cbz::CbzReader;
 use eco_viewer::run;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::sync::mpsc;
@@ -94,7 +93,7 @@ async fn find_chapter(manga: &Manga) -> Result<Chapter> {
 
 async fn download(
     chapter_id: &str,
-    filepath: &Path,
+    filepath: &Utf8Path,
     max_download_retries: u32,
     open: bool,
 ) -> Result<()> {
@@ -143,7 +142,7 @@ async fn download(
     cbz_writer.write_to(&file)?;
 
     if open {
-        run(CbzReader::try_from_reader(file)?)?;
+        run(filepath)?;
     }
 
     progress_handle.await??;
@@ -200,7 +199,12 @@ async fn main() -> Result<()> {
                     .interact_text()?
             };
 
-            let outdir = outdir.unwrap_or(current_dir()?);
+            let outdir = if let Some(outdir) = outdir {
+                outdir
+            } else {
+                let current_dir = current_dir()?;
+                current_dir.try_into()?
+            };
 
             if !outdir.exists() {
                 create_dir_all(&outdir)?;
@@ -262,7 +266,12 @@ async fn main() -> Result<()> {
             outdir,
             max_download_retries,
         }) => {
-            let outdir = outdir.unwrap_or(current_dir()?);
+            let outdir = if let Some(outdir) = outdir {
+                outdir
+            } else {
+                let current_dir = current_dir()?;
+                current_dir.try_into()?
+            };
 
             if !outdir.exists() {
                 create_dir_all(&outdir)?;

@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-
+use camino::Utf8PathBuf;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -18,7 +17,7 @@ pub struct InteractiveSearch {
     pub accepts_default_filename: bool,
     /// Destination directory, defaults to the current directory
     #[clap(long)]
-    pub outdir: Option<PathBuf>,
+    pub outdir: Option<Utf8PathBuf>,
     /// Language to use
     #[clap(long, default_value = "en")]
     pub language: String,
@@ -73,7 +72,7 @@ pub struct Download {
     pub open: bool,
     /// Destination directory, defaults to the current directory
     #[clap(long)]
-    pub outdir: Option<PathBuf>,
+    pub outdir: Option<Utf8PathBuf>,
     /// Max retries if image download fails
     #[clap(long, default_value_t = 3)]
     pub max_download_retries: u32,

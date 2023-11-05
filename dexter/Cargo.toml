@@ -7,6 +7,7 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-recursion.workspace = true
+camino.workspace = true
 clap = { workspace = true, features = ["derive"] }
 cli-table.workspace = true
 dexter-core.workspace = true
