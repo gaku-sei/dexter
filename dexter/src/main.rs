@@ -19,7 +19,7 @@ use dexter_core::{
 };
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
-use eco_viewer::run;
+use eco_view::{view, ViewOptions};
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::sync::mpsc;
 use types::{Chapter, ImageLink};
@@ -143,7 +143,10 @@ async fn download(
     cbz_writer.write_to(&file)?;
 
     if open {
-        run(filepath)?;
+        view(ViewOptions {
+            path: filepath.to_path_buf(),
+            type_: None,
+        })?;
     }
 
     progress_handle.await??;
