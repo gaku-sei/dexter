@@ -19,9 +19,9 @@ dexter-core = { path = "./dexter-core" }
 dialoguer = "0.10.4"
 dioxus = "0.4.0"
 dioxus-desktop = "0.4.0"
-eco-cbz = { git = "https://github.com/gaku-sei/eco.git" }
-eco-pack = { git = "https://github.com/gaku-sei/eco.git" }
-eco-viewer = { git = "https://github.com/gaku-sei/eco.git" }
+eco-cbz = { git = "https://github.com/gaku-sei/eco.git", rev = "a6561ad5796340a7db793b27ffdf12b7cddc14fb" }
+eco-pack = { git = "https://github.com/gaku-sei/eco.git", rev = "a6561ad5796340a7db793b27ffdf12b7cddc14fb" }
+eco-view = { git = "https://github.com/gaku-sei/eco.git", rev = "a6561ad5796340a7db793b27ffdf12b7cddc14fb" }
 futures = "0.3.28"
 glob = "0.3.1"
 home = "0.5.5"

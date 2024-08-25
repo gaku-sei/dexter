@@ -72,4 +72,4 @@ Using the chapter ID, we can now download it:
 dexter download -c 07bf2a09-f30d-410f-aba1-025e2d27a88f -o
 ```
 
-That'll automatically download the whole chapter as a CBZ file and open it using the simple [`eco-viewer`](https://github.com/gaku-sei/eco/tree/main/eco-viewer).
+That'll automatically download the whole chapter as a CBZ file and open it using the simple [`eco-view`](https://github.com/gaku-sei/eco/tree/main/eco-view).
