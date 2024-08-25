@@ -136,6 +136,7 @@ async fn download(
     let file = OpenOptions::new()
         .read(true)
         .write(true)
+        .truncate(true)
         .create(true)
         .open(filepath)?;
 
