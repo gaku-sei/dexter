@@ -3,7 +3,7 @@ resolver = "2"
 members = ["dexter", "dexter-core", "sinister"]
 
 [workspace.package]
-rust-version = "1.73.0"
+rust-version = "1.80.1"
 edition = "2021"
 
 [workspace.dependencies]

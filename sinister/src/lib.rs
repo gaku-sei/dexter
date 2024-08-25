@@ -41,6 +41,8 @@ pub fn run() {
 }
 
 #[allow(clippy::too_many_lines)]
+// TODO: Look into this
+#[allow(clippy::await_holding_refcell_ref)]
 fn App(cx: Scope<AppProps>) -> Element {
     let mangas_search = use_ref(cx, String::new);
     let mangas = use_ref(cx, || None);

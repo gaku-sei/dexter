@@ -53,6 +53,7 @@ pub struct Chapter {
     title: Option<String>,
     #[table(title = "Volume", display_fn = "display_otional_value")]
     volume: Option<String>,
+    #[allow(clippy::struct_field_names)]
     #[table(title = "Chapter", display_fn = "display_otional_value")]
     chapter: Option<String>,
     #[table(title = "Language", display_fn = "display_otional_value")]

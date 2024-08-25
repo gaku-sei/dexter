@@ -48,6 +48,7 @@ pub struct Chapters {
     #[clap(short, long)]
     pub volumes: Vec<String>,
     /// Specify which chapter(s) you want to get data from
+    #[allow(clippy::struct_field_names)]
     #[clap(short, long)]
     pub chapters: Vec<String>,
 }
